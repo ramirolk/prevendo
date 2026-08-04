@@ -1,58 +1,107 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Prevendo
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema de gestión de stock y ventas orientado a comercios con inventario (distribuidoras, ferreterías, indumentaria, kioscos mayoristas). Pensado como base para incorporar, en una etapa futura, un módulo de predicción de demanda basado en IA.
 
-## About Laravel
+> Proyecto de portfolio personal, desarrollado como pieza central para demostrar habilidades full-stack con foco en backend desacoplado, integridad transaccional y buenas prácticas de arquitectura.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack técnico
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Backend:** Laravel (API REST)
+- **Frontend:** JavaScript + Tailwind CSS (sin framework, consumiendo la API de forma desacoplada)
+- **Base de datos:** MySQL
+- **Autenticación:** Laravel Sanctum
+- **Entorno de desarrollo:** Docker vía Laravel Sail
+- **Futuro (etapa posterior):** microservicio en Python (pandas / scikit-learn) para predicción de demanda
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Alcance del MVP (Etapa 1)
 
-## Learning Laravel
+- Gestión de productos y categorías
+- Registro de ventas con descuento automático de stock (transaccional, con bloqueo de fila para evitar condiciones de carrera)
+- Anulación/devolución de ventas con reposición de stock
+- Registro de movimientos de stock (kardex / historial auditable)
+- Autenticación (Sanctum) y permisos granulares entre roles `owner` / `employee`
+- Reporte de stock bajo
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+**Fuera de alcance por ahora (a propósito):** facturación fiscal, medios de pago detallados, descuentos/promociones, multi-sucursal, gestión de proveedores.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Requisitos previos
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado y corriendo
+- En Windows: WSL2 habilitado, con una distro Linux de uso general instalada (por ejemplo Ubuntu — `wsl --install -d Ubuntu`), y la integración de Docker Desktop con esa distro activada (Settings → Resources → WSL Integration)
+- Composer instalado localmente (solo necesario para el bootstrap inicial; el desarrollo día a día corre dentro de los contenedores)
 
-## Agentic Development
+## Instalación
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+1. Cloná el repositorio:
+   ```bash
+   git clone <URL-del-repo>
+   cd prevendo
+   ```
 
+2. Instalá las dependencias de PHP (esto se corre una única vez con Composer local; después todo pasa por Sail):
+   ```bash
+   composer install
+   ```
+
+3. Copiá el archivo de entorno de ejemplo:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. Levantá los contenedores con Sail:
+   ```bash
+   ./vendor/bin/sail up -d
+   ```
+   > **Windows:** este comando debe correrse desde una terminal WSL (por ejemplo `wsl -d Ubuntu`), no desde PowerShell o CMD directamente, ya que `sail` es un script bash.
+
+5. Generá la key de la aplicación:
+   ```bash
+   ./vendor/bin/sail artisan key:generate
+   ```
+
+6. Corré las migraciones:
+   ```bash
+   ./vendor/bin/sail artisan migrate
+   ```
+
+7. Verificá que todo funciona:
+   ```bash
+   ./vendor/bin/sail artisan --version
+   ```
+   Y abrí [http://localhost](http://localhost) en el navegador — deberías ver la landing de Laravel.
+
+### Alias recomendado
+
+Para no escribir `./vendor/bin/sail` en cada comando, agregá esto a tu `~/.bashrc` o `~/.zshrc` (dentro de la distro WSL):
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+alias sail='./vendor/bin/sail'
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Troubleshooting común (Windows + Docker Desktop + WSL2)
 
-## Contributing
+| Síntoma | Causa probable | Solución |
+|---|---|---|
+| `execvpe(/bin/bash) failed: No such file or directory` | Se está corriendo `sail` desde PowerShell/CMD, o no hay una distro Linux de uso general instalada en WSL | Instalar una distro (`wsl --install -d Ubuntu`) y correr Sail desde ahí |
+| `Docker or Podman is not running` | La distro WSL en uso no tiene habilitada la integración con Docker Desktop | Docker Desktop → Settings → Resources → WSL Integration → activar la distro correspondiente |
+| `ports are not available: exposing port TCP 0.0.0.0:3306` | Un MySQL local (por ejemplo, servicio de Laragon) ya está usando el puerto 3306 | Detener ese servicio (`Stop-Service <nombre>` en PowerShell) o remapear `FORWARD_DB_PORT` en el `.env` |
+| `wsl --list --verbose` no muestra `docker-desktop-data` | En versiones recientes de Docker Desktop no siempre aparece esta distro; no es necesariamente un problema | Confirmar con `docker run hello-world` — si funciona, Docker está OK independientemente de esta distro |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Comandos útiles
 
-## Code of Conduct
+```bash
+sail up -d              # Levantar contenedores en background
+sail down                # Detener contenedores
+sail artisan migrate      # Correr migraciones
+sail artisan migrate:fresh --seed  # Resetear DB y correr seeders
+sail composer require <paquete>    # Instalar dependencia PHP
+sail npm install          # Instalar dependencias de frontend (si aplica)
+sail test                 # Correr tests
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Estado del proyecto
 
-## Security Vulnerabilities
+🚧 En desarrollo activo — Etapa 1 (MVP).
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Licencia
 
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Este proyecto es de uso personal/portfolio. Sin licencia de distribución definida por el momento.
