@@ -5,9 +5,12 @@ namespace App\Models;
 use App\Enums\StockMovementType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class StockMovement extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'product_id',
         'sale_id',
