@@ -69,7 +69,7 @@ class CategoryController extends Controller
             if (($e->errorInfo[1] ?? null) === 1451) {
                 return response()->json([
                     'message' => 'Cannot delete a category that has associated products.',
-                ], 422);
+                ], 409);
             }
 
             throw $e;
