@@ -1,0 +1,13 @@
+[90m= [39m[34;4mApp\Models\Product[39;24m {#8128
+    [34mid[39m: [35m1[39m,
+    [34mcategory_id[39m: [35m1[39m,
+    [34mname[39m: [32m"[39m[32mCoca Cola 500ml[39m[32m"[39m,
+    [34mdescription[39m: [32m"[39m[32mGaseosa Coca Cola de 500ml[39m[32m"[39m,
+    [34msale_price[39m: [32m"[39m[32m1200.00[39m[32m"[39m,
+    [34mcost_price[39m: [32m"[39m[32m1000.00[39m[32m"[39m,
+    [34mcurrent_stock[39m: [35m0[39m,
+    [34mminimum_stock[39m: [35m0[39m,
+    [34mactive[39m: [35m1[39m,
+    [34mcreated_at[39m: [32m"[39m[32m2026-08-09 04:01:11[39m[32m"[39m,
+    [34mupdated_at[39m: [32m"[39m[32m2026-08-09 05:46:43[39m[32m"[39m,
+  }

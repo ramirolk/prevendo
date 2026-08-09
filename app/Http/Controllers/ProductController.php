@@ -75,7 +75,7 @@ class ProductController extends Controller
             ]);
         } catch (\Illuminate\Database\QueryException $e) {
             if ($e->errorInfo[1] === 1451) {
-                $product->update(['active' => false]);
+                $product->forceFill(['active' => false])->save();
 
                 return response()->json([
                     'message' => 'Product has sales history and cannot be deleted. It has been deactivated instead.',
@@ -83,6 +83,6 @@ class ProductController extends Controller
             }
 
             throw $e;
-        }
+            }
     }
 }
