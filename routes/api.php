@@ -28,6 +28,10 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::apiResource('products', ProductController::class);
-    
-    Route::post('/sales', [SaleController::class, 'store']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('sales', SaleController::class);
+
+    Route::post('/sales/{sale}/cancel', [SaleController::class, 'cancel']);
 });
