@@ -4,6 +4,6 @@ namespace App\Enums;
 
 enum SaleStatus: string
 {
-    case Completed = 'completed';
-    case Cancelled = 'cancelled';
+    case COMPLETED = 'completed';
+    case CANCELLED = 'cancelled';
 }
