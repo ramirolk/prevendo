@@ -17,6 +17,7 @@ class StockMovement extends Model
         'sale_id',
         'type',
         'quantity',
+        'reason',
     ];
 
     protected function casts(): array

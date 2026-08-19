@@ -28,6 +28,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::apiResource('products', ProductController::class);
+    Route::post('/products/{product}/stock-adjustments', [ProductController::class, 'storeStockAdjustment']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

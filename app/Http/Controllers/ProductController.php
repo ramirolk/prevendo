@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\StockMovementType;
+use App\Exceptions\NegativeStockException;
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\StoreStockAdjustmentRequest;
 use App\Http\Requests\UpdateProductRequest;
 
 use App\Http\Resources\ProductResource;
 
 use App\Models\Product;
-
+use App\Models\StockMovement;
 
 class ProductController extends Controller
 {
@@ -84,5 +88,42 @@ class ProductController extends Controller
 
             throw $e;
             }
+    }
+
+    public function storeStockAdjustment(StoreStockAdjustmentRequest $request, Product $product)
+    {
+        try {
+            DB::transaction(function () use ($request, $product){
+                $product = Product::where('id', $product->id)
+                    ->lockForUpdate()
+                    ->first();
+                
+                $newStock = $product->current_stock + $request->validated('quantity');
+
+                if ($newStock < 0) {
+                    throw new NegativeStockException(
+                        "Adjustment would result in negative stock for product {$product->name}."
+                    );
+                }
+
+                $product->forceFill(['current_stock' => $newStock])->save();
+
+                StockMovement::create([
+                    'product_id' => $product->id,
+                    'user_id' => $request->user()->id,
+                    'type' => StockMovementType::ADJUSTMENT,
+                    'quantity' => $request->validated('quantity'),
+                    'reason' => $request->validated('reason'),
+                ]);   
+            });
+
+            return response()->json([
+                'message' => 'Stock adjusted successfully.',
+            ], 200);
+        } catch (NegativeStockException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 409);
+        }
     }
 }
