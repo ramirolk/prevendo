@@ -7,32 +7,29 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SaleController;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
+
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
 
+    // Categories
     Route::apiResource('categories', CategoryController::class);
-});
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
+    // Products
+    Route::apiResource('products', ProductController::class)->except(['destroy']);
 
-    Route::apiResource('products', ProductController::class);
+    Route::delete('/products/{product}', [ProductController::class, 'destroy'])
+        ->middleware('role:owner');
+
     Route::post('/products/{product}/stock-adjustments', [ProductController::class, 'storeStockAdjustment']);
-});
 
-Route::middleware('auth:sanctum')->group(function () {
+    // Sales
     Route::apiResource('sales', SaleController::class);
 
-    Route::post('/sales/{sale}/cancel', [SaleController::class, 'cancel']);
+    Route::post('/sales/{sale}/cancel',[SaleController::class, 'cancel'])
+        ->middleware('role:owner');
 });
