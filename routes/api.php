@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -32,4 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/sales/{sale}/cancel',[SaleController::class, 'cancel'])
         ->middleware('role:owner');
+    
+    //LowStock
+    Route::get('/reports/low-stock', [ReportController::class, 'lowStock']);
 });
