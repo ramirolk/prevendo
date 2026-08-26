@@ -102,6 +102,9 @@ sail test                 # Correr tests
 
 🚧 En desarrollo activo — Etapa 1 (MVP).
 
+See [docs/business-rules.md](docs/business-rules.md) for documented business
+rules and deliberate MVP simplifications.
+
 ## Licencia
 
 Este proyecto es de uso personal/portfolio. Sin licencia de distribución definida por el momento.
