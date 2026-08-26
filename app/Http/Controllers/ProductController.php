@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\StockMovementType;
+use App\Enums\UserRole;
 use App\Exceptions\NegativeStockException;
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
@@ -19,19 +20,19 @@ use App\Models\StockMovement;
 
 class ProductController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
-        $products = Product::paginate($request->input('per_page', 15));
+        $query = Product::query();
+
+        if (! ($request->boolean('include_inactive') && $request->user()->role === UserRole::OWNER)) {
+            $query->where('active', true);
+        }
+
+        $products = $query->paginate($request->input('per_page', 15));
 
         return ProductResource::collection($products);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(StoreProductRequest $request)
     {
         $product = Product::create([
@@ -48,17 +49,11 @@ class ProductController extends Controller
             ->setStatusCode(201);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Product $product)
     {
         return new ProductResource($product);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(UpdateProductRequest $request, Product $product)
     {
         $product->update($request->validated());
@@ -66,9 +61,6 @@ class ProductController extends Controller
         return new ProductResource($product->fresh());
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Product $product)
     {
         try {
