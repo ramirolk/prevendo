@@ -1,7 +1,22 @@
 const BASE_URL = 'http://localhost/api';
 
-function getToken(params) {
-    return '6|TOfZ3AW7ABVz7mtMyrzAeDQYxx4YN56hfLs3knID422f3cfe';
+
+function getToken() {
+    return sessionStorage.getItem('auth_token');
+}
+
+function getRole() {
+    return sessionStorage.getItem('user_role');
+}
+
+function setToken(token, role) {
+    sessionStorage.setItem('auth_token', token);
+    sessionStorage.setItem('user_role', role);
+}
+
+function clearToken() {
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('user_role');
 }
 
 async function apiFetch(endpoint, options = {}) {
@@ -32,7 +47,7 @@ async function apiFetch(endpoint, options = {}) {
 
 }
 
-export {apiFetch};
+export { getRole, apiFetch, setToken, clearToken};
 
 
 
