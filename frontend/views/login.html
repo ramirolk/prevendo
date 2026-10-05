@@ -3,52 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Prevendo</title>
 
-    <link rel="stylesheet" href="../css/input.css">
+    <link rel="stylesheet" href="../css/output.css">
 </head>
 
-<body>
-
-    <main>
-        <h1>Iniciar sesión</h1>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <main class="w-full max-w-sm bg-white p-8 rounded-lg shadow-sm">
+        <h1 class="text-2xl font-semibold text-gray-900 mb-6">Iniciar sesión</h1>
 
         <form id="login-form">
+            <div id="form-fields"></div>
 
-            <div>
-                <label for="email">Email</label>
+            <p id="login-error" class="text-sm text-red-600 mb-4" hidden></p>
 
-                <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    required
-                >
-            </div>
-
-            <div>
-                <label for="password">Contraseña</label>
-
-                <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    required
-                >
-            </div>
-
-            <button type="submit">
-                Iniciar sesión
-            </button>
-
-            <p id="login-error" hidden></p>
-
+            <div id="submit-button"></div>
         </form>
     </main>
 
     <script type="module" src="../js/login.js"></script>
-
 </body>
 </html>
 
