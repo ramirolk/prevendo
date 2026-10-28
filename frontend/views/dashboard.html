@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prevendo</title>
+
+    <link rel="stylesheet" href="../css/output.css">
+</head>
+
+<body class="min-h-screen bg-gray-50">
+    <header id="nav"></header>
+
+    <main class="mx-auto max-w-7xl p-6">
+        <section class="mb-8">
+            <h1 class="text-2xl font-semibold text-gray-900">
+                Inicio
+            </h1>
+
+            <p class="mt-2 text-gray-600">
+                Bienvenido a Prevendo. Este es el resumen de tu inventario.
+            </p>
+        </section>
+
+        <section class="rounded-lg bg-white p-6 shadow-sm">
+            <h2 class="mb-4 text-lg font-semibold text-gray-900">
+                Productos con stock bajo
+            </h2>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-gray-700">
+                    <thead class="border-b bg-gray-50 text-gray-900">
+                        <tr>
+                            <th scope="col" class="px-4 py-3">Producto</th>
+                            <th scope="col" class="px-4 py-3">Stock actual</th>
+                            <th scope="col" class="px-4 py-3">Stock mínimo</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="low-stock-body">
+                        <tr>
+                            <td colspan="3" class="px-4 py-6 text-center">
+                                Cargando productos...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script type="module" src="../js/views/dashboard.js"></script>
+</body>
+</html>

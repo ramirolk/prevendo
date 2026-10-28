@@ -1,6 +1,6 @@
-import { apiFetch, setToken } from "./api.js";
-import { renderInput } from './components/input.js';
-import { renderButton } from './components/button.js';
+import { apiFetch, setToken } from "../api.js";
+import { renderInput } from '../components/input.js';
+import { renderButton } from '../components/button.js';
 
 const formFields = document.getElementById('form-fields');
 const submitButtonContainer = document.getElementById('submit-button');
@@ -55,9 +55,9 @@ form.addEventListener('submit', async (event) => {
             }),
         });
 
-        setToken(data.token, data.user.role);
+        setToken(data.token, data.user.role, data.user.name);
 
-        window.location.href = '/dashboard.html';
+        window.location.href = '../views/dashboard.html';
 
     } catch (error) {
 

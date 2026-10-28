@@ -9,45 +9,71 @@ function getRole() {
     return sessionStorage.getItem('user_role');
 }
 
-function setToken(token, role) {
+function getUserName() {
+    return sessionStorage.getItem('user_name');
+}
+
+function setToken(token, role, userName) {
     sessionStorage.setItem('auth_token', token);
     sessionStorage.setItem('user_role', role);
+    sessionStorage.setItem('user_name', userName);
 }
 
 function clearToken() {
     sessionStorage.removeItem('auth_token');
     sessionStorage.removeItem('user_role');
+    sessionStorage.removeItem('user_name');
 }
 
 async function apiFetch(endpoint, options = {}) {
-   const response = await fetch(`${BASE_URL}${endpoint}`, {
+    const token = getToken();
+
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
         ...options,
         headers: {
-            'Accept':  'application/json',
+            Accept: 'application/json',
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...options.headers,
         },
-   });
-   
-   const data = response.status === 204 ? null : await response.json();
+    });
 
-   if (!response.ok) {
+    const data = response.status === 204
+        ? null
+        : await response.json();
+
+    if (!response.ok) {
         const error = new Error(
-            data.message || 'Error en la solicitud'
+            data?.message || 'Error en la solicitud'
         );
 
         error.status = response.status;
         error.data = data;
 
+        if (
+            response.status === 401 &&
+            endpoint !== '/login' &&
+            token
+        ) {
+            clearToken();
+            window.location.replace ('/views/login.html');
+        }
+
         throw error;
-   }
+    }
 
-   return data;
-
+    return data;
 }
 
-export { getRole, apiFetch, setToken, clearToken};
+export {
+    getToken,
+    getRole,
+    getUserName,
+    apiFetch,
+    setToken,
+    clearToken,
+};
+
 
 
 
