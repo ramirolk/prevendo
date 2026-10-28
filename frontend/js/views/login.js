@@ -1,6 +1,6 @@
-import { apiFetch, setToken } from "./api.js";
-import { renderInput } from './components/input.js';
-import { renderButton } from './components/button.js';
+import { apiFetch, setToken } from "../api.js";
+import { renderInput } from '../components/input.js';
+import { renderButton } from '../components/button.js';
 
 const formFields = document.getElementById('form-fields');
 const submitButtonContainer = document.getElementById('submit-button');

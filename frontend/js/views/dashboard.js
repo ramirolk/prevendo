@@ -1,8 +1,8 @@
-import './auth-guard.js';
+import '../auth-guard.js';
 
-import {apiFetch} from './api.js';
-import {mountNav} from './layout/nav.js';
-import {escapeHtml} from './utils/escape.js';
+import {apiFetch} from '../api.js';
+import {mountNav} from '../layout/nav.js';
+import {escapeHtml} from '../utils/escape.js';
 
 const lowStockBody = document.getElementById('low-stock-body');
 
