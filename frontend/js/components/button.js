@@ -1,6 +1,15 @@
+import { escapeHtml } from '../utils/escape.js';
 
-function renderButton({ id = null, text, type = 'button', variant = 'primary', loading = false, disabled = false, loadingText = 'Cargando...', className = '',}) {
-    
+function renderButton({
+    id = null,
+    text,
+    type = 'button',
+    variant = 'primary',
+    loading = false,
+    disabled = false,
+    loadingText = 'Cargando...',
+    className = '',
+}) {
     const isDisabled = disabled || loading;
 
     const variants = {
@@ -11,10 +20,16 @@ function renderButton({ id = null, text, type = 'button', variant = 'primary', l
 
     const buttonClasses = variants[variant] ?? variants.primary;
 
+    const safeId = id !== null ? escapeHtml(id) : '';
+    const safeType = escapeHtml(type);
+    const safeClassName = escapeHtml(className);
+    const safeText = escapeHtml(text);
+    const safeLoadingText = escapeHtml(loadingText);
+
     return `
         <button
-            ${id ? `id="${id}"` : ''}
-            type="${type}"
+            ${id !== null ? `id="${safeId}"` : ''}
+            type="${safeType}"
             ${isDisabled ? 'disabled' : ''}
             aria-busy="${loading}"
             class="
@@ -25,10 +40,10 @@ function renderButton({ id = null, text, type = 'button', variant = 'primary', l
                 focus:outline-none focus:ring-2 focus:ring-offset-2
                 disabled:cursor-not-allowed disabled:opacity-50
                 ${buttonClasses}
-                ${className}
+                ${safeClassName}
             "
         >
-            ${loading ? loadingText : text}
+            ${loading ? safeLoadingText : safeText}
         </button>
     `;
 }

@@ -55,9 +55,9 @@ form.addEventListener('submit', async (event) => {
             }),
         });
 
-        setToken(data.token, data.user.role);
+        setToken(data.token, data.user.role, data.user.name);
 
-        window.location.href = '/dashboard.html';
+        window.location.href = '../views/dashboard.html';
 
     } catch (error) {
 
