@@ -11,7 +11,7 @@ mountNav();
 function renderMessage(message) {
     lowStockBody.innerHTML = `
         <tr>
-            <td colspan="3" class="px-4 py-6 text-center text-gray-600">
+            <td colspan="3" class="px-4 py-6 text-center text-muted">
                 ${escapeHtml(message)}
             </td>
         </tr>
@@ -25,8 +25,8 @@ function renderProducts(products) {
     }
 
     lowStockBody.innerHTML = products.map(product => `
-        <tr class="border-b last:border-b-0 hover:bg-gray-50">
-            <td class="px-4 py-3 font-medium text-gray-900">
+        <tr class="border-b last:border-b-0 hover:bg-ground">
+            <td class="px-4 py-3 font-medium text-muted">
                 ${escapeHtml(product.name)}
             </td>
 

@@ -35,12 +35,12 @@ function renderNav() {
 
     const visibleLinks = links.filter(link =>
         link.roles.includes(role)
-    );
+    ); 
 
     const linksHtml = visibleLinks.map(link => `
         <a
             href="${link.href}"
-            class="text-sm font-medium text-gray-700 hover:text-blue-600"
+            class="text-sm font-medium text-muted hover:text-brand-hover"
         >
             ${escapeHtml(link.label)}
         </a>
@@ -49,11 +49,11 @@ function renderNav() {
     return `
         <nav
             class="flex flex-wrap items-center justify-between gap-4
-                   border-b border-gray-200 bg-white px-6 py-4"
+                   border-b border-line bg-white px-6 py-4"
             aria-label="Navegación principal"
         >
             <div class="flex flex-wrap items-center gap-6">
-                <span class="text-lg font-bold text-blue-700">
+                <span class="text-lg font-bold text-brand">
                     Prevendo
                 </span>
 
@@ -63,7 +63,7 @@ function renderNav() {
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
-                <span class="text-sm text-gray-600">
+                <span class="text-sm text-muted">
                     ${safeUserName} (${safeRole})
                 </span>
 

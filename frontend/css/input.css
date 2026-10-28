@@ -2,3 +2,14 @@
 
 @source "../views";
 @source "../js";
+
+@theme {
+    --color-brand: #0E4A5C;
+    --color-brand-hover: #0B3D4D;
+    --color-ink: #16231F;
+    --color-muted: #5B6B66;
+    --color-ground: #EDF0EE;
+    --color-line: #D5DCD8;
+    --color-warn: #B45309;
+    --color-danger: #B42318;
+}
