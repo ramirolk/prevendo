@@ -13,8 +13,8 @@ function renderButton({
     const isDisabled = disabled || loading;
 
     const variants = {
-        primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-        secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-400',
+        primary: 'bg-brand text-white hover:bg-brand-hover focus:ring-brand',
+        secondary: 'bg-ground text-muted hover:bg-ground focus:ring-gray-400',
         danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
     };
 

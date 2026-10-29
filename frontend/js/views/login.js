@@ -15,14 +15,28 @@ function renderSubmitButton({ loading = false } = {}) {
         type: 'submit',
         loading,
         loadingText: 'Ingresando...',
-        className: 'w-full',
+        className: 'w-full min-h-11 rounded-lg py-3',
     });
 }
 
 function renderForm() {
     formFields.innerHTML = `
-        ${renderInput({ id: 'email', label: 'Email', type: 'email', required: true })}
-        ${renderInput({ id: 'password', label: 'Contraseña', type: 'password', required: true })}
+        ${renderInput({
+            id: 'email',
+            label: 'Email',
+            type: 'email',
+            required: true,
+            placeholder: 'nombre@comercio.com',
+            autoComplete: 'username',
+        })}
+        ${renderInput({
+            id: 'password',
+            label: 'Contraseña',
+            type: 'password',
+            required: true,
+            placeholder: 'Ingresá tu contraseña',
+            autoComplete: 'current-password',
+        })}
     `;
 
     renderSubmitButton();
@@ -64,7 +78,7 @@ form.addEventListener('submit', async (event) => {
         errorMessage.hidden = false;
 
         if (error.status === 401) {
-            errorMessage.textContent = error.data?.message || 'Invalid credentials.';
+            errorMessage.textContent = 'Email o contraseña incorrectos.';
         } else {
             errorMessage.textContent = 'Error al iniciar sesión, intenta nuevamente';
         }
