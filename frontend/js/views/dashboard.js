@@ -8,6 +8,9 @@ const lowStockBody = document.getElementById('low-stock-body');
 const lowStockCount = document.getElementById('low-stock-count');
 const outOfStockCount = document.getElementById('out-of-stock-count');
 const reportStatus = document.getElementById('report-status');
+const activeProductsCount = document.getElementById('active-products-count');
+const activeProductsStatus = document.getElementById('active-products-status');
+const retryActiveProducts = document.getElementById('retry-active-products');
 
 mountNav();
 
@@ -49,9 +52,9 @@ function renderMessage(message, { error = false } = {}) {
 }
 
 function renderProducts(products) {
-    lowStockCount.textContent = products.length.toLocaleString('es-AR');
+    lowStockCount.textContent = escapeHtml(products.length.toLocaleString('es-AR'));
     const unavailable = products.filter(product => Number(product.current_stock) <= 0).length;
-    outOfStockCount.textContent = unavailable.toLocaleString('es-AR');
+    outOfStockCount.textContent = escapeHtml(unavailable.toLocaleString('es-AR'));
 
     if (products.length === 0) {
         setStatus('Todo al día', 'success');
@@ -81,8 +84,8 @@ function renderProducts(products) {
 }
 
 async function loadLowStock() {
-    lowStockCount.textContent = '—';
-    outOfStockCount.textContent = '—';
+    lowStockCount.textContent = escapeHtml('—');
+    outOfStockCount.textContent = escapeHtml('—');
     setStatus('Cargando reporte', 'neutral');
     renderMessage('Cargando productos...');
 
@@ -105,4 +108,40 @@ async function loadLowStock() {
     }
 }
 
+async function loadActiveProducts() {
+    activeProductsCount.textContent = escapeHtml('—');
+    activeProductsStatus.className = 'mt-1 text-sm text-muted';
+    activeProductsStatus.textContent = escapeHtml('Cargando productos');
+    retryActiveProducts.hidden = true;
+    retryActiveProducts.classList.add('hidden');
+
+    try {
+        const response = await apiFetch('/products?per_page=1');
+        const total = response?.meta?.total;
+
+        if (!Number.isSafeInteger(total) || total < 0) {
+            throw new Error('Formato de respuesta inesperado');
+        }
+
+        activeProductsCount.textContent = escapeHtml(total.toLocaleString('es-AR'));
+        activeProductsStatus.className = 'mt-1 text-sm text-muted';
+        activeProductsStatus.textContent = escapeHtml('Productos activos en el inventario');
+    } catch (error) {
+        if (error.status === 401) {
+            return;
+        }
+
+        activeProductsCount.textContent = escapeHtml('—');
+        activeProductsStatus.className = 'mt-1 text-sm text-danger';
+        activeProductsStatus.textContent = escapeHtml('No se pudieron cargar los productos');
+        retryActiveProducts.hidden = false;
+        retryActiveProducts.classList.remove('hidden');
+        console.error('Error al cargar el total de productos activos:', error);
+    }
+}
+
+retryActiveProducts.addEventListener('click', loadActiveProducts);
+
+// Cada bloque se carga por separado: un error no debe bloquear al otro.
 loadLowStock();
+loadActiveProducts();
