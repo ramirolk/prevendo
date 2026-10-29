@@ -52,9 +52,9 @@ function renderMessage(message, { error = false } = {}) {
 }
 
 function renderProducts(products) {
-    lowStockCount.textContent = escapeHtml(products.length.toLocaleString('es-AR'));
+    lowStockCount.textContent = products.length.toLocaleString('es-AR');
     const unavailable = products.filter(product => Number(product.current_stock) <= 0).length;
-    outOfStockCount.textContent = escapeHtml(unavailable.toLocaleString('es-AR'));
+    outOfStockCount.textContent = unavailable.toLocaleString('es-AR');
 
     if (products.length === 0) {
         setStatus('Todo al día', 'success');
@@ -84,8 +84,8 @@ function renderProducts(products) {
 }
 
 async function loadLowStock() {
-    lowStockCount.textContent = escapeHtml('—');
-    outOfStockCount.textContent = escapeHtml('—');
+    lowStockCount.textContent = '—';
+    outOfStockCount.textContent = '—';
     setStatus('Cargando reporte', 'neutral');
     renderMessage('Cargando productos...');
 
@@ -109,9 +109,9 @@ async function loadLowStock() {
 }
 
 async function loadActiveProducts() {
-    activeProductsCount.textContent = escapeHtml('—');
+    activeProductsCount.textContent = '—';
     activeProductsStatus.className = 'mt-1 text-sm text-muted';
-    activeProductsStatus.textContent = escapeHtml('Cargando productos');
+    activeProductsStatus.textContent = 'Cargando productos';
     retryActiveProducts.hidden = true;
     retryActiveProducts.classList.add('hidden');
 
@@ -123,17 +123,17 @@ async function loadActiveProducts() {
             throw new Error('Formato de respuesta inesperado');
         }
 
-        activeProductsCount.textContent = escapeHtml(total.toLocaleString('es-AR'));
+        activeProductsCount.textContent = total.toLocaleString('es-AR');
         activeProductsStatus.className = 'mt-1 text-sm text-muted';
-        activeProductsStatus.textContent = escapeHtml('Productos activos en el inventario');
+        activeProductsStatus.textContent = 'Productos activos en el inventario';
     } catch (error) {
         if (error.status === 401) {
             return;
         }
 
-        activeProductsCount.textContent = escapeHtml('—');
+        activeProductsCount.textContent = '—';
         activeProductsStatus.className = 'mt-1 text-sm text-danger';
-        activeProductsStatus.textContent = escapeHtml('No se pudieron cargar los productos');
+        activeProductsStatus.textContent = 'No se pudieron cargar los productos';
         retryActiveProducts.hidden = false;
         retryActiveProducts.classList.remove('hidden');
         console.error('Error al cargar el total de productos activos:', error);
