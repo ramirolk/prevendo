@@ -1,27 +1,43 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#EDF0EE">
     <title>Prevendo</title>
 
     <link rel="stylesheet" href="../css/output.css">
 </head>
 
-<body class="bg-ground min-h-screen flex items-center justify-center">
-    <main class="w-full max-w-sm bg-white p-8 rounded-lg shadow-sm">
-        <h1 class="text-2xl font-semibold text-muted mb-6">Iniciar sesión</h1>
+<body class="flex min-h-screen items-center justify-center bg-ground px-4 py-10 text-ink">
+    <main class="w-full max-w-md rounded-2xl border border-line bg-white p-8 shadow-sm sm:p-10">
+        <div class="mb-8 inline-flex items-center gap-3">
+            <span class="flex size-10 items-center justify-center rounded-xl bg-brand text-base font-bold text-white" aria-hidden="true">P</span>
+            <span class="text-xl font-semibold tracking-tight text-ink">Prevendo</span>
+        </div>
 
-        <form id="login-form">
-            <div id="form-fields"></div>
+        <p class="mb-2 text-sm font-medium text-muted">Gestión simple para tu negocio</p>
+        <h1 class="text-3xl font-semibold tracking-tight text-ink">Iniciá sesión</h1>
+        <p class="mt-2 text-sm leading-6 text-muted">Ingresá con tu cuenta para continuar.</p>
 
-            <p id="login-error" class="text-sm text-red-600 mb-4" hidden></p>
+        <form id="login-form" class="mt-8 space-y-5">
+            <div id="form-fields" class="space-y-5"></div>
+
+            <p
+                id="login-error"
+                class="rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger"
+                role="alert"
+                hidden
+            ></p>
 
             <div id="submit-button"></div>
         </form>
+
+        <p class="mt-6 text-center text-xs leading-5 text-muted">
+            Si necesitás acceso, pedile una invitación al propietario del comercio.
+        </p>
     </main>
 
     <script type="module" src="../js/views/login.js"></script>
 </body>
 </html>
-
