@@ -1,79 +1,90 @@
-import {getRole, getUserName, clearToken,} from '../api.js';
+import { getRole, getUserName, clearToken } from '../api.js';
+import { renderButton } from '../components/button.js';
+import { escapeHtml } from '../utils/escape.js';
 
-import {renderButton} from '../components/button.js';
-import {escapeHtml} from '../utils/escape.js';
+const links = [
+    {
+        label: 'Inicio',
+        href: '/views/dashboard.html',
+        roles: ['owner', 'employee'],
+        icon: '<path stroke-linecap="round" stroke-linejoin="round" d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10Z" />',
+    },
+    {
+        label: 'Productos',
+        href: '/views/products.html',
+        roles: ['owner', 'employee'],
+        icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />',
+    },
+    {
+        label: 'Categorías',
+        href: '/views/categories.html',
+        roles: ['owner', 'employee'],
+        icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16M4 12h16M4 19h16M7 5v.01M7 12v.01M7 19v.01" />',
+    },
+    {
+        label: 'Ventas',
+        href: '/views/sales.html',
+        roles: ['owner', 'employee'],
+        icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l2.2 10.3a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6M10 20h.01M17 20h.01" />',
+    },
+];
 
 function renderNav() {
     const role = getRole();
-    const userName = getUserName() || 'Usuario';
+    const userName = escapeHtml(getUserName() || 'Usuario');
+    const roleLabel = role === 'owner' ? 'Propietario' : role === 'employee' ? 'Empleado' : '';
+    const currentPath = window.location.pathname.toLowerCase();
 
-    const safeUserName = escapeHtml(userName);
-    const safeRole = role ? escapeHtml(role) : '';
+    const linksHtml = links
+        .filter(link => link.roles.includes(role))
+        .map(link => {
+            const isCurrent = currentPath.endsWith(link.href.split('/').pop());
 
-    const links = [
-        {
-            label: 'Inicio',
-            href: '/views/dashboard.html',
-            roles: ['owner', 'employee'],
-        },
-        {
-            label: 'Categorías',
-            href: '/views/categories.html',
-            roles: ['owner', 'employee'],
-        },
-        {
-            label: 'Productos',
-            href: '/views/products.html',
-            roles: ['owner', 'employee'],
-        },
-        {
-            label: 'Ventas',
-            href: '/views/sales.html',
-            roles: ['owner', 'employee'],
-        },
-    ];
-
-    const visibleLinks = links.filter(link =>
-        link.roles.includes(role)
-    ); 
-
-    const linksHtml = visibleLinks.map(link => `
-        <a
-            href="${link.href}"
-            class="text-sm font-medium text-muted hover:text-brand-hover"
-        >
-            ${escapeHtml(link.label)}
-        </a>
-    `).join('');
+            return `
+                <a
+                    href="${link.href}"
+                    ${isCurrent ? 'aria-current="page"' : ''}
+                    class="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isCurrent ? 'bg-brand/10 text-brand' : 'text-muted hover:bg-ground hover:text-brand'} md:w-full"
+                >
+                    <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                        ${link.icon}
+                    </svg>
+                    <span>${escapeHtml(link.label)}</span>
+                </a>
+            `;
+        }).join('');
 
     return `
-        <nav
-            class="flex flex-wrap items-center justify-between gap-4
-                   border-b border-line bg-white px-6 py-4"
-            aria-label="Navegación principal"
-        >
-            <div class="flex flex-wrap items-center gap-6">
-                <span class="text-lg font-bold text-brand">
-                    Prevendo
-                </span>
-
-                <div class="flex flex-wrap items-center gap-4">
-                    ${linksHtml}
-                </div>
+        <aside class="flex min-h-0 flex-col border-b border-line bg-white px-3 py-3 md:h-full md:border-b-0 md:border-r md:px-4 md:py-5" aria-label="Navegación principal">
+            <div class="flex items-center justify-between gap-3 px-2">
+                <a href="/views/dashboard.html" class="inline-flex items-center gap-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2" aria-label="Prevendo, inicio">
+                    <span class="flex size-9 items-center justify-center rounded-xl bg-brand text-sm font-bold text-white" aria-hidden="true">P</span>
+                    <span class="text-lg font-semibold tracking-tight text-ink">Prevendo</span>
+                </a>
+                <span class="hidden max-w-28 truncate text-right text-xs text-muted sm:block md:hidden">${userName}</span>
             </div>
 
-            <div class="flex flex-wrap items-center gap-3">
-                <span class="text-sm text-muted">
-                    ${safeUserName} (${safeRole})
-                </span>
+            <p class="mb-2 mt-7 hidden px-3 text-[10px] font-semibold uppercase tracking-wider text-muted md:block">Gestión del comercio</p>
+            <nav class="mt-3 flex gap-1 overflow-x-auto md:mt-0 md:flex-col" aria-label="Secciones">
+                ${linksHtml}
+            </nav>
 
+            <div class="mt-2 flex items-center justify-between gap-3 border-t border-line px-2 pt-3 md:mt-auto md:pt-4">
+                <div class="flex min-w-0 items-center gap-2.5">
+                    <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs font-semibold text-brand" aria-hidden="true">${escapeHtml((getUserName() || 'U').trim().slice(0, 1).toUpperCase())}</span>
+                    <div class="min-w-0">
+                        <p class="max-w-36 truncate text-xs font-semibold text-ink">${userName}</p>
+                        <p class="text-[11px] text-muted">${escapeHtml(roleLabel)}</p>
+                    </div>
+                </div>
                 ${renderButton({
                     id: 'logout-button',
-                    text: 'Cerrar sesión',
+                    text: 'Salir',
                     variant: 'secondary',
+                    className: 'shrink-0 px-3 py-2',
                 })}
             </div>
-        </nav>
+        </aside>
     `;
 }
 
@@ -81,17 +92,13 @@ function mountNav(containerId = 'nav') {
     const container = document.getElementById(containerId);
 
     if (!container) {
-        console.error(
-            `No se encontró el contenedor de navegación: #${containerId}`
-        );
+        console.error(`No se encontró el contenedor de navegación: #${containerId}`);
         return;
     }
 
     container.innerHTML = renderNav();
 
-    const logoutButton = container.querySelector('#logout-button');
-
-    logoutButton.addEventListener('click', () => {
+    container.querySelector('#logout-button').addEventListener('click', () => {
         clearToken();
         window.location.replace('/views/login.html');
     });

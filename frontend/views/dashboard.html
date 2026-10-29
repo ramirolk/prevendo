@@ -1,53 +1,103 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prevendo</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#EDF0EE">
+    <title>Inicio | Prevendo</title>
 
     <link rel="stylesheet" href="../css/output.css">
 </head>
 
-<body class="min-h-screen bg-ground">
-    <header id="nav"></header>
+<body class="min-h-screen bg-ground text-ink antialiased">
+    <div class="min-h-screen md:grid md:grid-cols-[236px_minmax(0,1fr)]">
+        <header id="nav" class="sticky top-0 z-10 md:h-screen"></header>
 
-    <main class="mx-auto max-w-7xl p-6">
-        <section class="mb-8">
-            <h1 class="text-2xl font-semibold text-muted">
-                Inicio
-            </h1>
+        <div class="min-w-0">
+            <header class="flex h-14 items-center justify-between gap-4 border-b border-line bg-white px-4 sm:px-6 lg:px-8">
+                <span class="text-sm font-medium text-muted">Panel de control</span>
+                <time id="current-date" class="text-xs font-medium text-muted"></time>
+            </header>
 
-            <p class="mt-2 text-muted">
-                Bienvenido a Prevendo. Este es el resumen de tu inventario.
-            </p>
-        </section>
+            <main class="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
+                <section class="mb-6">
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Inicio</p>
+                    <h1 class="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+                        Resumen del inventario
+                    </h1>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                        Revisá los productos que necesitan reposición para mantener tu negocio en movimiento.
+                    </p>
+                </section>
 
-        <section class="rounded-lg bg-white p-6 shadow-sm">
-            <h2 class="mb-4 text-lg font-semibold text-muted">
-                Productos con stock bajo
-            </h2>
+                <section aria-label="Indicadores de inventario" class="mb-5 grid gap-4 sm:grid-cols-2">
+                    <article class="rounded-2xl border border-line bg-white p-5 shadow-sm sm:p-6">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="text-sm font-medium text-muted">Productos para reponer</p>
+                                <p id="low-stock-count" class="mt-3 text-3xl font-semibold tracking-tight text-ink" aria-live="polite">—</p>
+                                <p class="mt-1 text-sm text-muted">En el nivel mínimo o por debajo</p>
+                            </div>
+                            <span class="flex size-11 items-center justify-center rounded-xl bg-warn/10 text-warn" aria-hidden="true">
+                                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M10.3 3.9 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3l-7.5-13.1a2 2 0 0 0-3.4 0Z" />
+                                </svg>
+                            </span>
+                        </div>
+                    </article>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-muted">
-                    <thead class="border-b bg-ground text-muted">
-                        <tr>
-                            <th scope="col" class="px-4 py-3">Producto</th>
-                            <th scope="col" class="px-4 py-3">Stock actual</th>
-                            <th scope="col" class="px-4 py-3">Stock mínimo</th>
-                        </tr>
-                    </thead>
+                    <article class="rounded-2xl border border-line bg-white p-5 shadow-sm sm:p-6">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="text-sm font-medium text-muted">Sin existencias</p>
+                                <p id="out-of-stock-count" class="mt-3 text-3xl font-semibold tracking-tight text-ink" aria-live="polite">—</p>
+                                <p class="mt-1 text-sm text-muted">Dentro del reporte de stock bajo</p>
+                            </div>
+                            <span class="flex size-11 items-center justify-center rounded-xl bg-danger/10 text-danger" aria-hidden="true">
+                                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6 6 18" />
+                                    <circle cx="12" cy="12" r="9" />
+                                </svg>
+                            </span>
+                        </div>
+                    </article>
+                </section>
 
-                    <tbody id="low-stock-body">
-                        <tr>
-                            <td colspan="3" class="px-4 py-6 text-center">
-                                Cargando productos...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </main>
+                <section class="overflow-hidden rounded-2xl border border-line bg-white shadow-sm" aria-labelledby="low-stock-heading">
+                    <div class="flex flex-col gap-1 border-b border-line px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                        <div>
+                            <h2 id="low-stock-heading" class="text-base font-semibold text-ink">Productos con stock bajo</h2>
+                            <p class="mt-1 text-sm text-muted">Existencias actuales frente al mínimo definido para cada producto.</p>
+                        </div>
+                        <span id="report-status" class="mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-ground px-3 py-1 text-xs font-medium text-muted sm:mt-0" role="status">
+                            <span class="size-1.5 rounded-full bg-muted" aria-hidden="true"></span>
+                            Cargando reporte
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[560px] text-left text-sm">
+                            <thead class="bg-ground/70 text-xs font-semibold uppercase tracking-wide text-muted">
+                                <tr>
+                                    <th scope="col" class="px-5 py-3.5 sm:px-6">Producto</th>
+                                    <th scope="col" class="px-5 py-3.5">Stock actual</th>
+                                    <th scope="col" class="px-5 py-3.5">Stock mínimo</th>
+                                    <th scope="col" class="px-5 py-3.5 sm:px-6">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="low-stock-body" class="divide-y divide-line">
+                                <tr>
+                                    <td colspan="4" class="px-5 py-12 text-center text-sm text-muted sm:px-6">
+                                        Cargando productos...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
 
     <script type="module" src="../js/views/dashboard.js"></script>
 </body>
