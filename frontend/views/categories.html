@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#EDF0EE">
+    <title>Categorías | Prevendo</title>
+
+    <link rel="stylesheet" href="../css/output.css">
+</head>
+
+<body class="min-h-screen bg-ground text-ink antialiased">
+    <div class="min-h-screen md:grid md:grid-cols-[236px_minmax(0,1fr)]">
+        <header id="nav" class="sticky top-0 z-10 md:h-screen"></header>
+
+        <div class="min-w-0">
+            <header class="flex h-14 items-center justify-between gap-4 border-b border-line bg-white px-4 sm:px-6 lg:px-8">
+                <span class="text-sm font-medium text-muted">Panel de control</span>
+                <span class="text-xs font-medium text-muted">Organización</span>
+            </header>
+
+            <main class="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
+                <section class="mb-6">
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Catálogo</p>
+                    <h1 class="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Categorías</h1>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                        Consultá las categorías que organizan los productos de tu comercio.
+                    </p>
+                </section>
+
+                <section class="overflow-hidden rounded-2xl border border-line bg-white shadow-sm" aria-labelledby="categories-heading">
+                    <div class="flex flex-col gap-3 border-b border-line px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                        <div>
+                            <h2 id="categories-heading" class="text-base font-semibold text-ink">Categorías del comercio</h2>
+                            <p class="mt-1 text-sm text-muted">Nombres registrados para organizar el catálogo.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span id="categories-count" class="inline-flex items-center rounded-full bg-ground px-3 py-1 text-xs font-medium text-muted" aria-live="polite">— categorías</span>
+                            <span id="categories-status" class="text-xs font-medium text-muted" role="status">Cargando categorías</span>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[420px] text-left text-sm">
+                            <thead class="bg-ground/70 text-xs font-semibold uppercase tracking-wide text-muted">
+                                <tr>
+                                    <th scope="col" class="px-5 py-3.5 sm:px-6">Nombre</th>
+                                    <th scope="col" class="px-5 py-3.5 sm:px-6">Fecha de creación</th>
+                                </tr>
+                            </thead>
+                            <tbody id="categories-body" class="divide-y divide-line">
+                                <tr>
+                                    <td colspan="2" class="px-5 py-12 text-center text-sm text-muted sm:px-6">Cargando categorías...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script type="module" src="../js/views/categories.js"></script>
+</body>
+</html>
