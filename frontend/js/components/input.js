@@ -2,23 +2,31 @@ import { escapeHtml } from '../utils/escape.js';
 
 function renderInput({
     id,
+    name = id,
     label,
     type = 'text',
     required = false,
     error = null,
     value = '',
     maxLength = null,
+    min = null,
+    step = null,
     placeholder = '',
     autoComplete = null,
 }) {
     
     const safeId = escapeHtml(id);
+    const safeName = escapeHtml(name);
     const safeLabel = escapeHtml(label);
     const safeType = escapeHtml(type);
     const safeError = escapeHtml(error);
     const safeValue = escapeHtml(value);
     const safeMaxLength = Number.isInteger(maxLength) && maxLength > 0
         ? escapeHtml(maxLength)
+        : null;
+    const safeMin = Number.isFinite(min) ? escapeHtml(min) : null;
+    const safeStep = typeof step === 'number' && Number.isFinite(step)
+        ? escapeHtml(step)
         : null;
     const safePlaceholder = escapeHtml(placeholder);
     const safeAutoComplete = autoComplete ? escapeHtml(autoComplete) : null;
@@ -35,9 +43,11 @@ function renderInput({
             <input
                 type="${safeType}"
                 id="${safeId}"
-                name="${safeId}"
+                name="${safeName}"
                 value="${safeValue}"
                 ${safeMaxLength ? `maxlength="${safeMaxLength}"` : ''}
+                ${safeMin !== null ? `min="${safeMin}"` : ''}
+                ${safeStep !== null ? `step="${safeStep}"` : ''}
                 ${safePlaceholder ? `placeholder="${safePlaceholder}"` : ''}
                 ${safeAutoComplete ? `autocomplete="${safeAutoComplete}"` : ''}
                 ${required ? 'required' : ''}

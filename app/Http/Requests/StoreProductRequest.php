@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\UserRole;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -22,7 +23,7 @@ class StoreProductRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'category_id' => ['required', 'integer', 'exists:categories,id'],
 
             'name' => ['required', 'string', 'max:255'],
@@ -33,16 +34,18 @@ class StoreProductRequest extends FormRequest
                 'required',
                 'numeric',
                 'min:0',
-                'gte:cost_price',
-            ],
-
-            'cost_price' => [
-                'required',
-                'numeric',
-                'min:0',
             ],
 
             'minimum_stock' => ['required', 'integer', 'min:0'],
         ];
+
+        if ($this->user()->role === UserRole::OWNER) {
+            $rules['cost_price'] = ['required', 'numeric', 'min:0'];
+            $rules['sale_price'][] = 'gte:cost_price';
+        } else {
+            $rules['cost_price'] = ['missing'];
+        }
+
+        return $rules;
     }
 }

@@ -22,13 +22,32 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
+        $filters = $request->validate([
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'category_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
+        ]);
+
         $query = Product::query();
 
         if (! ($request->boolean('include_inactive') && $request->user()->role === UserRole::OWNER)) {
             $query->where('active', true);
         }
 
-        $products = $query->paginate($request->input('per_page', 15));
+        $search = trim($filters['search'] ?? '');
+        if ($search !== '') {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        if (! empty($filters['category_id'])) {
+            $query->where('category_id', $filters['category_id']);
+        }
+
+        $products = $query
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate($filters['per_page'] ?? 15);
 
         return ProductResource::collection($products);
     }
@@ -63,23 +82,25 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
+        if ($product->saleItems()->exists() || $product->stockMovements()->exists()) {
+            return response()->json([
+                'message' => 'Product has sales or stock movements and cannot be deleted.',
+            ], 409);
+        }
+
         try {
             $product->delete();
 
-            return response()->json([
-                'message' => 'Product deleted successfully.'
-            ]);
+            return response()->noContent();
         } catch (\Illuminate\Database\QueryException $e) {
-            if ($e->errorInfo[1] === 1451) {
-                $product->forceFill(['active' => false])->save();
-
+            if (($e->errorInfo[1] ?? null) === 1451) {
                 return response()->json([
-                    'message' => 'Product has sales history and cannot be deleted. It has been deactivated instead.',
-                ], 200);
+                    'message' => 'Product has related records and cannot be deleted. Deactivate it instead.',
+                ], 409);
             }
 
             throw $e;
-            }
+        }
     }
 
     public function storeStockAdjustment(StoreStockAdjustmentRequest $request, Product $product)
