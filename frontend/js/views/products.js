@@ -1,6 +1,8 @@
 import '../auth-guard.js';
 
 import { apiFetch, getRole } from '../api.js';
+import { renderButton } from '../components/button.js';
+import { renderInput } from '../components/input.js';
 import { mountNav } from '../layout/nav.js';
 import { escapeHtml } from '../utils/escape.js';
 
@@ -19,6 +21,10 @@ const includeInactive = document.getElementById('include-inactive');
 const pagination = document.getElementById('products-pagination');
 const paginationSummary = document.getElementById('products-pagination-summary');
 const pageLabel = document.getElementById('products-page-label');
+const productForm = document.getElementById('product-form');
+const productFields = document.getElementById('product-fields');
+const productFormError = document.getElementById('product-form-error');
+const productActions = document.getElementById('product-actions');
 
 const perPage = 10;
 const isOwner = getRole() === 'owner';
@@ -29,10 +35,210 @@ let categoriesById = new Map();
 let productsLoaded = false;
 let includesCostPrice = false;
 let requestedPage = 1;
+let categories = [];
+let categoriesLoaded = false;
+let categoriesLoadFailed = false;
+let isSubmitting = false;
 
 mountNav();
 
 if (isOwner) includeInactiveControl.hidden = false;
+
+function emptyProductFormValues() {
+    return {
+        category_id: '',
+        name: '',
+        description: '',
+        sale_price: '',
+        cost_price: '',
+        minimum_stock: '',
+    };
+}
+
+function readProductFormValues() {
+    return Object.fromEntries(
+        ['category_id', 'name', 'description', 'sale_price', 'cost_price', 'minimum_stock']
+            .map(name => [name, productForm.elements.namedItem(name)?.value ?? '']),
+    );
+}
+
+function getProductFieldError(errors, name) {
+    return errors[name]?.[0] ?? null;
+}
+
+function renderCategorySelect(value = '', error = null) {
+    const options = categories.length
+        ? `<option value="">Seleccioná una categoría</option>${categories.map(category => `
+            <option value="${escapeHtml(category.id)}" ${String(category.id) === String(value) ? 'selected' : ''}>${escapeHtml(category.name)}</option>
+        `).join('')}`
+        : `<option value="">${categoriesLoaded ? 'No hay categorías disponibles' : categoriesLoadFailed ? 'No se pudieron cargar las categorías' : 'Cargando categorías...'}</option>`;
+
+    return `
+        <div class="space-y-2" data-product-field>
+            <label for="category_id" class="block text-sm font-medium text-ink">Categoría</label>
+            <select id="category_id" name="category_id" required ${categories.length ? '' : 'disabled'} ${error ? 'aria-invalid="true" aria-describedby="category_id-error"' : ''} class="block min-h-11 w-full rounded-lg border ${error ? 'border-danger focus:ring-danger/20' : 'border-line focus:ring-brand/20'} bg-white px-3.5 py-3 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 disabled:cursor-not-allowed disabled:bg-ground">
+                ${options}
+            </select>
+            ${error ? `<p id="category_id-error" class="field-error text-sm text-danger">${escapeHtml(error)}</p>` : ''}
+            ${categoriesLoaded && categories.length === 0 ? '<p class="text-sm text-muted">Creá una <a href="/views/categories.html" class="font-medium text-brand underline underline-offset-2">categoría</a> antes de registrar productos.</p>' : ''}
+        </div>
+    `;
+}
+
+function renderProductForm({ values = emptyProductFormValues(), errors = {} } = {}) {
+    const fields = [
+        `<div id="product-category-field">${renderCategorySelect(values.category_id, getProductFieldError(errors, 'category_id'))}</div>`,
+        `<div data-product-field>${renderInput({ id: 'product-name', name: 'name', label: 'Nombre', required: true, value: values.name, maxLength: 255, error: getProductFieldError(errors, 'name'), placeholder: 'Ej. Cinta aisladora', autoComplete: 'off' })}</div>`,
+        `<div class="space-y-2" data-product-field>
+            <label for="product-description" class="block text-sm font-medium text-ink">Descripción <span class="font-normal text-muted">(opcional)</span></label>
+            <textarea id="product-description" name="description" rows="3" ${getProductFieldError(errors, 'description') ? 'aria-invalid="true" aria-describedby="description-error"' : ''} class="block w-full rounded-lg border ${getProductFieldError(errors, 'description') ? 'border-danger focus:ring-danger/20' : 'border-line focus:ring-brand/20'} bg-white px-3.5 py-3 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-brand focus:ring-2" placeholder="Detalles útiles para identificarlo">${escapeHtml(values.description)}</textarea>
+            ${getProductFieldError(errors, 'description') ? `<p id="description-error" class="field-error text-sm text-danger">${escapeHtml(getProductFieldError(errors, 'description'))}</p>` : ''}
+        </div>`,
+        `<div data-product-field>${renderInput({ id: 'product-sale-price', name: 'sale_price', label: 'Precio de venta', type: 'number', required: true, value: values.sale_price, min: 0, step: 0.01, error: getProductFieldError(errors, 'sale_price'), placeholder: '0,00' })}</div>`,
+    ];
+
+    if (isOwner) {
+        fields.push(`<div data-product-field>${renderInput({ id: 'product-cost-price', name: 'cost_price', label: 'Costo', type: 'number', required: true, value: values.cost_price, min: 0, step: 0.01, error: getProductFieldError(errors, 'cost_price'), placeholder: '0,00' })}</div>`);
+    }
+
+    fields.push(`<div data-product-field>${renderInput({ id: 'product-minimum-stock', name: 'minimum_stock', label: 'Stock mínimo', type: 'number', required: true, value: values.minimum_stock, min: 0, step: 1, error: getProductFieldError(errors, 'minimum_stock'), placeholder: '0' })}</div>`);
+
+    productFields.innerHTML = fields.join('');
+    renderProductSubmitButton();
+}
+
+function renderProductSubmitButton({ loading = false } = {}) {
+    productActions.innerHTML = renderButton({
+        id: 'product-submit-button',
+        text: 'Crear producto',
+        type: 'submit',
+        loading,
+        loadingText: 'Creando...',
+        disabled: !categoriesLoaded || categories.length === 0,
+        className: 'w-full min-h-11 rounded-lg py-3',
+    });
+}
+
+function clearProductFormError() {
+    productFormError.textContent = '';
+    productFormError.hidden = true;
+}
+
+function showProductFormError(message) {
+    productFormError.textContent = message;
+    productFormError.hidden = false;
+}
+
+function focusProductField(name) {
+    const ids = {
+        category_id: 'category_id',
+        name: 'product-name',
+        description: 'product-description',
+        sale_price: 'product-sale-price',
+        cost_price: 'product-cost-price',
+        minimum_stock: 'product-minimum-stock',
+    };
+
+    document.getElementById(ids[name] ?? 'product-name')?.focus();
+}
+
+function clearProductFieldError(target) {
+    const field = target.closest('[data-product-field]');
+
+    if (!field) return;
+
+    const error = field.querySelector('.field-error');
+    const input = field.querySelector('[aria-invalid="true"]');
+
+    if (!error || !input) return;
+
+    input.removeAttribute('aria-invalid');
+    input.removeAttribute('aria-describedby');
+    input.classList.remove('border-danger', 'focus:ring-danger/20');
+    input.classList.add('border-line', 'focus:ring-brand/20');
+    error.remove();
+}
+
+async function createProduct(event) {
+    event.preventDefault();
+
+    if (isSubmitting || !categoriesLoaded || categories.length === 0) return;
+
+    const values = readProductFormValues();
+    const payload = {
+        category_id: values.category_id,
+        name: values.name.trim(),
+        description: values.description.trim() || null,
+        sale_price: values.sale_price,
+        minimum_stock: values.minimum_stock,
+    };
+
+    clearProductFormError();
+    clearProductsError();
+    clearCategoriesError();
+
+    if (!payload.name) {
+        renderProductForm({ values, errors: { name: ['El nombre es obligatorio.'] } });
+        focusProductField('name');
+        return;
+    }
+
+    if (isOwner) {
+        payload.cost_price = values.cost_price;
+        if (values.sale_price !== '' && values.cost_price !== '' && Number(values.sale_price) < Number(values.cost_price)) {
+            renderProductForm({ values, errors: { sale_price: ['El precio de venta debe ser mayor o igual al costo.'] } });
+            focusProductField('sale_price');
+            return;
+        }
+    }
+
+    isSubmitting = true;
+    renderProductSubmitButton({ loading: true });
+
+    try {
+        await apiFetch('/products', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+
+        const currentValues = readProductFormValues();
+        const formChangedWhileSubmitting = Object.entries(values)
+            .some(([name, value]) => currentValues[name] !== value);
+
+        if (!formChangedWhileSubmitting) {
+            productForm.querySelectorAll('input, select, textarea').forEach(field => {
+                field.value = '';
+            });
+        }
+        clearProductFormError();
+        const refreshed = await loadProducts({ page: 1 });
+        setProductsStatus('Producto creado', 'neutral');
+
+        if (!refreshed) {
+            showProductsError('El producto se creó, pero no se pudo actualizar la lista. Volvé a intentar para verlo.');
+        }
+
+        focusProductField('name');
+    } catch (error) {
+        if (error.status === 401) return;
+
+        if (error.status === 422 && error.data?.errors) {
+            const errors = error.data.errors;
+            const currentValues = readProductFormValues();
+            renderProductForm({ values: currentValues, errors });
+            const firstInvalidField = ['category_id', 'name', 'description', 'sale_price', 'cost_price', 'minimum_stock']
+                .find(name => getProductFieldError(errors, name));
+            focusProductField(firstInvalidField);
+        } else {
+            showProductFormError('No se pudo crear el producto. Revisá los datos e intentá nuevamente.');
+            focusProductField('name');
+            console.error('Error al crear el producto:', error);
+        }
+    } finally {
+        isSubmitting = false;
+        renderProductSubmitButton();
+    }
+}
 
 function setProductsStatus(message, tone = 'neutral') {
     const tones = {
@@ -217,8 +423,9 @@ async function loadProducts({ page = currentPage } = {}) {
         includesCostPrice = products.some(product => Object.prototype.hasOwnProperty.call(product, 'cost_price'));
         productsLoaded = true;
         renderProducts();
+        return true;
     } catch (error) {
-        if (error.status === 401) return;
+        if (error.status === 401) return false;
 
         productsLoaded = false;
         productsCount.textContent = '— productos';
@@ -227,6 +434,7 @@ async function loadProducts({ page = currentPage } = {}) {
         renderTableMessage('No se pudieron cargar los productos.');
         showProductsError('Revisá tu conexión e intentá nuevamente.');
         console.error('Error al cargar los productos:', error);
+        return false;
     } finally {
         setListLoading(false);
     }
@@ -234,6 +442,7 @@ async function loadProducts({ page = currentPage } = {}) {
 
 async function loadCategories() {
     clearCategoriesError();
+    categoriesLoadFailed = false;
 
     try {
         const response = await apiFetch('/categories');
@@ -242,16 +451,40 @@ async function loadCategories() {
             throw new Error('Formato de categorías inesperado');
         }
 
-        categoriesById = new Map(response.data.map(category => [String(category.id), category.name]));
+        const categorySelect = document.getElementById('category_id');
+        const selectedCategory = categorySelect?.value ?? '';
+        const categoryHadFocus = document.activeElement === categorySelect;
+        categories = response.data;
+        categoriesById = new Map(categories.map(category => [String(category.id), category.name]));
+        categoriesLoaded = true;
+        document.getElementById('product-category-field').innerHTML = renderCategorySelect(selectedCategory);
+        if (categoryHadFocus) document.getElementById('category_id')?.focus();
+        renderProductSubmitButton();
         if (productsLoaded) renderProducts();
     } catch (error) {
         if (error.status === 401) return;
 
+        categoriesLoaded = false;
+        categoriesLoadFailed = true;
+        const categorySelect = document.getElementById('category_id');
+        document.getElementById('product-category-field').innerHTML = renderCategorySelect(categorySelect?.value ?? '');
+        renderProductSubmitButton();
         showCategoriesError('No se pudieron cargar los nombres de las categorías. Podés reintentar sin perder la lista de productos.');
         console.error('Error al cargar las categorías de productos:', error);
     }
 }
 
+productForm.addEventListener('input', event => {
+    clearProductFormError();
+    clearProductFieldError(event.target);
+});
+
+productForm.addEventListener('change', event => {
+    clearProductFormError();
+    clearProductFieldError(event.target);
+});
+
+productForm.addEventListener('submit', createProduct);
 retryProducts.addEventListener('click', () => loadProducts({ page: requestedPage }));
 retryCategories.addEventListener('click', loadCategories);
 includeInactive.addEventListener('change', () => loadProducts({ page: 1 }));
@@ -265,5 +498,6 @@ pagination.addEventListener('click', event => {
     loadProducts({ page: nextPage });
 });
 
+renderProductForm();
 loadCategories();
 loadProducts({ page: 1 });

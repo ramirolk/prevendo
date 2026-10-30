@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\UserRole;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -24,7 +25,7 @@ class UpdateProductRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'category_id' => [
                 'sometimes',
                 'required',
@@ -52,13 +53,13 @@ class UpdateProductRequest extends FormRequest
                 'min:0',
             ],
 
-            'cost_price' => [
-                'sometimes',
-                'required',
-                'numeric',
-                'min:0',
-            ],
         ];
+
+        $rules['cost_price'] = $this->user()->role === UserRole::OWNER
+            ? ['sometimes', 'required', 'numeric', 'min:0']
+            : ['missing'];
+
+        return $rules;
     }
 
     public function after(): array
@@ -77,7 +78,7 @@ class UpdateProductRequest extends FormRequest
                     $product->cost_price
                 );
 
-                if ($salePrice < $costPrice) {
+                if ($costPrice !== null && (float) $salePrice < (float) $costPrice) {
                     $validator->errors()->add(
                         'sale_price',
                         'The sale price must be greater than or equal to the cost price.'

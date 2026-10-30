@@ -22,52 +22,64 @@
                     </p>
                 </section>
 
-                <section class="overflow-hidden rounded-2xl border border-line bg-white shadow-sm" aria-labelledby="products-heading">
-                    <div class="flex flex-col gap-3 border-b border-line px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                        <div>
-                            <h2 id="products-heading" class="text-base font-semibold text-ink">Productos del comercio</h2>
-                            <p class="mt-1 text-sm text-muted">Inventario registrado y disponibilidad actual.</p>
+                <div class="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)]">
+                    <section class="overflow-hidden rounded-2xl border border-line bg-white shadow-sm" aria-labelledby="products-heading">
+                        <div class="flex flex-col gap-3 border-b border-line px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                            <div>
+                                <h2 id="products-heading" class="text-base font-semibold text-ink">Productos del comercio</h2>
+                                <p class="mt-1 text-sm text-muted">Inventario registrado y disponibilidad actual.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <label id="include-inactive-control" class="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-medium text-ink" hidden>
+                                    <input id="include-inactive" type="checkbox" class="size-4 rounded border-line text-brand focus:ring-2 focus:ring-brand/20">
+                                    Incluir productos inactivos
+                                </label>
+                                <span id="products-count" class="inline-flex items-center rounded-full bg-ground px-3 py-1 text-xs font-medium text-muted">— productos</span>
+                                <span id="products-status" class="text-xs font-medium text-muted" role="status">Cargando productos</span>
+                            </div>
                         </div>
-                        <div class="flex flex-wrap items-center gap-3">
-                            <label id="include-inactive-control" class="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-medium text-ink" hidden>
-                                <input id="include-inactive" type="checkbox" class="size-4 rounded border-line text-brand focus:ring-2 focus:ring-brand/20">
-                                Incluir productos inactivos
-                            </label>
-                            <span id="products-count" class="inline-flex items-center rounded-full bg-ground px-3 py-1 text-xs font-medium text-muted">— productos</span>
-                            <span id="products-status" class="text-xs font-medium text-muted" role="status">Cargando productos</span>
+
+                        <div id="products-alert" class="mx-5 mt-4 flex flex-col gap-2 rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger sm:mx-6" role="alert" hidden>
+                            <p id="products-error-message"></p>
+                            <button id="retry-products" type="button" class="w-fit rounded-lg px-3 py-2 text-sm font-semibold text-brand hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Volver a intentar</button>
                         </div>
-                    </div>
 
-                    <div id="products-alert" class="mx-5 mt-4 flex flex-col gap-2 rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger sm:mx-6" role="alert" hidden>
-                        <p id="products-error-message"></p>
-                        <button id="retry-products" type="button" class="w-fit rounded-lg px-3 py-2 text-sm font-semibold text-brand hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Volver a intentar</button>
-                    </div>
+                        <div id="categories-alert" class="mx-5 mt-4 flex flex-col gap-2 rounded-lg border border-warn/20 bg-warn/10 px-3.5 py-3 text-sm text-warn sm:mx-6" role="alert" hidden>
+                            <p id="categories-error-message"></p>
+                            <button id="retry-categories" type="button" class="w-fit rounded-lg px-3 py-2 text-sm font-semibold text-brand hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Volver a cargar categorías</button>
+                        </div>
 
-                    <div id="categories-alert" class="mx-5 mt-4 flex flex-col gap-2 rounded-lg border border-warn/20 bg-warn/10 px-3.5 py-3 text-sm text-warn sm:mx-6" role="alert" hidden>
-                        <p id="categories-error-message"></p>
-                        <button id="retry-categories" type="button" class="w-fit rounded-lg px-3 py-2 text-sm font-semibold text-brand hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Volver a cargar categorías</button>
-                    </div>
+                        <div class="overflow-x-auto">
+                            <table id="products-table" class="w-full min-w-[680px] text-left text-sm">
+                                <thead id="products-head" class="bg-ground/70 text-xs font-semibold uppercase tracking-wide text-muted"></thead>
+                                <tbody id="products-body" class="divide-y divide-line">
+                                    <tr>
+                                        <td class="px-5 py-12 text-center text-sm text-muted sm:px-6">Cargando productos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
 
-                    <div class="overflow-x-auto">
-                        <table id="products-table" class="w-full min-w-[680px] text-left text-sm">
-                            <thead id="products-head" class="bg-ground/70 text-xs font-semibold uppercase tracking-wide text-muted"></thead>
-                            <tbody id="products-body" class="divide-y divide-line">
-                                <tr>
-                                    <td class="px-5 py-12 text-center text-sm text-muted sm:px-6">Cargando productos...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                        <div class="flex flex-col gap-3 border-t border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                            <p id="products-pagination-summary" class="text-sm text-muted">— productos</p>
+                            <nav id="products-pagination" class="flex items-center gap-2" aria-label="Paginación de productos">
+                                <button type="button" data-page="previous" class="min-h-11 rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50" disabled>Anterior</button>
+                                <span id="products-page-label" class="min-w-24 text-center text-sm text-muted" aria-live="polite">Página —</span>
+                                <button type="button" data-page="next" class="min-h-11 rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50" disabled>Siguiente</button>
+                            </nav>
+                        </div>
+                    </section>
 
-                    <div class="flex flex-col gap-3 border-t border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                        <p id="products-pagination-summary" class="text-sm text-muted">— productos</p>
-                        <nav id="products-pagination" class="flex items-center gap-2" aria-label="Paginación de productos">
-                            <button type="button" data-page="previous" class="min-h-11 rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50" disabled>Anterior</button>
-                            <span id="products-page-label" class="min-w-24 text-center text-sm text-muted" aria-live="polite">Página —</span>
-                            <button type="button" data-page="next" class="min-h-11 rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50" disabled>Siguiente</button>
-                        </nav>
-                    </div>
-                </section>
+                    <aside class="rounded-2xl border border-line bg-white p-5 shadow-sm sm:p-6" aria-labelledby="product-form-heading">
+                        <h2 id="product-form-heading" class="text-base font-semibold text-ink">Nuevo producto</h2>
+                        <p class="mt-1 text-sm leading-6 text-muted">Completá los datos para incorporarlo al inventario.</p>
+                        <form id="product-form" class="mt-5 space-y-5" novalidate>
+                            <div id="product-fields" class="space-y-4"></div>
+                            <p id="product-form-error" class="rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger" role="alert" hidden></p>
+                            <div id="product-actions"></div>
+                        </form>
+                    </aside>
+                </div>
             </main>
         </div>
     </div>
