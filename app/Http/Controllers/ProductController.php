@@ -63,23 +63,25 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
+        if ($product->saleItems()->exists() || $product->stockMovements()->exists()) {
+            return response()->json([
+                'message' => 'Product has sales or stock movements and cannot be deleted.',
+            ], 409);
+        }
+
         try {
             $product->delete();
 
-            return response()->json([
-                'message' => 'Product deleted successfully.'
-            ]);
+            return response()->noContent();
         } catch (\Illuminate\Database\QueryException $e) {
-            if ($e->errorInfo[1] === 1451) {
-                $product->forceFill(['active' => false])->save();
-
+            if (($e->errorInfo[1] ?? null) === 1451) {
                 return response()->json([
-                    'message' => 'Product has sales history and cannot be deleted. It has been deactivated instead.',
-                ], 200);
+                    'message' => 'Product has related records and cannot be deleted. Deactivate it instead.',
+                ], 409);
             }
 
             throw $e;
-            }
+        }
     }
 
     public function storeStockAdjustment(StoreStockAdjustmentRequest $request, Product $product)

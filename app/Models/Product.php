@@ -18,6 +18,7 @@ class Product extends Model
         'sale_price',
         'cost_price',
         'minimum_stock',
+        'active',
     ];
 
     protected function casts(): array
@@ -25,6 +26,7 @@ class Product extends Model
         return [
             'sale_price' => 'decimal:2',
             'cost_price' => 'decimal:2',
+            'active' => 'boolean',
         ];
     }
 

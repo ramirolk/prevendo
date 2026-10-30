@@ -53,6 +53,7 @@ let editingProduct = null;
 let isAdjustingStock = false;
 let adjustingProduct = null;
 let stockAdjustmentReturnFocusId = null;
+let isProductActionPending = false;
 
 mountNav();
 
@@ -146,7 +147,7 @@ function renderProductSubmitButton({ loading = false } = {}) {
         type: 'submit',
         loading,
         loadingText: isEditing ? 'Guardando...' : 'Creando...',
-        disabled: isAdjustingStock || !categoriesLoaded || categories.length === 0,
+        disabled: isAdjustingStock || isProductActionPending || !categoriesLoaded || categories.length === 0,
         className: 'w-full min-h-11 rounded-lg py-3',
     });
     const cancelButton = isEditing
@@ -220,6 +221,105 @@ function cancelStockAdjustment() {
     stockAdjustmentForm.reset();
 
     if (productId) focusStockAdjustmentTrigger(productId);
+}
+
+function focusProductAction(productId, action) {
+    const trigger = [...productsBody.querySelectorAll('button[data-action]')]
+        .find(button => button.dataset.id === String(productId) && button.dataset.action === action);
+
+    if (trigger && !trigger.disabled) {
+        trigger.focus();
+    } else {
+        productsHeading.focus();
+    }
+}
+
+async function loadProductsAfterRowAction() {
+    const refreshed = await loadProducts({ page: currentPage });
+
+    if (refreshed && currentPage > lastPage) {
+        return loadProducts({ page: lastPage });
+    }
+
+    return refreshed;
+}
+
+async function runProductAction(product, {
+    request,
+    successMessage,
+    focusAction = null,
+    conflictMessage = 'No se pudo completar la acción porque el producto tiene movimientos asociados.',
+} = {}) {
+    if (isProductActionPending || isSubmitting || isAdjustingStock) return;
+
+    isProductActionPending = true;
+    setProductRowBusy(product.id, true);
+    setListLoading(true);
+    renderProductSubmitButton();
+
+    try {
+        await request();
+        const refreshed = await loadProductsAfterRowAction();
+
+        if (refreshed) {
+            setProductsStatus(successMessage, 'neutral');
+            if (focusAction) {
+                focusProductAction(product.id, focusAction);
+            } else {
+                productsHeading.focus();
+            }
+        } else {
+            showProductsError(`${successMessage}, pero no se pudo actualizar la lista. Volvé a intentar para verla.`);
+            retryProducts.focus();
+        }
+    } catch (error) {
+        if (error.status === 401) return;
+
+        if (error.status === 409) {
+            showProductsError(conflictMessage);
+            productsAlert.focus();
+        } else if (error.status === 404) {
+            const refreshed = await loadProductsAfterRowAction();
+            showProductsError(refreshed
+                ? 'Ese producto ya no existe.'
+                : 'Ese producto ya no existe. No se pudo actualizar la lista; volvé a intentar.');
+            productsAlert.focus();
+        } else {
+            showProductsError('No se pudo completar la acción. Revisá tu conexión e intentá nuevamente.');
+            productsAlert.focus();
+            console.error('Error al actualizar el estado del producto:', error);
+        }
+    } finally {
+        isProductActionPending = false;
+        setProductRowBusy(product.id, false);
+        setListLoading(false);
+        renderProductSubmitButton();
+    }
+}
+
+function toggleProductActive(product) {
+    const active = !Boolean(product.active);
+
+    return runProductAction(product, {
+        request: () => apiFetch(`/products/${encodeURIComponent(product.id)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ active }),
+        }),
+        successMessage: active ? 'Producto activado' : 'Producto desactivado',
+        focusAction: 'toggle-active',
+    });
+}
+
+function deleteProduct(product) {
+    const confirmed = window.confirm(`¿Eliminar el producto ${product.name}? Si tiene ventas o movimientos de stock asociados, no se podrá eliminar.`);
+
+    if (!confirmed) return;
+
+    return runProductAction(product, {
+        request: () => apiFetch(`/products/${encodeURIComponent(product.id)}`, { method: 'DELETE' }),
+        successMessage: 'Producto eliminado',
+        conflictMessage: 'El producto tiene ventas o movimientos de stock asociados. Desactivalo para ocultarlo sin perder su historial.',
+    });
 }
 
 function startEditing(product) {
@@ -297,7 +397,7 @@ function clearProductFieldError(target) {
 async function saveProduct(event) {
     event.preventDefault();
 
-    if (isSubmitting || isAdjustingStock || !categoriesLoaded || categories.length === 0) return;
+    if (isSubmitting || isAdjustingStock || isProductActionPending || !categoriesLoaded || categories.length === 0) return;
 
     const values = readProductFormValues();
     const targetProduct = editingProduct;
@@ -413,7 +513,7 @@ function readStockAdjustmentValues() {
 async function submitStockAdjustment(event) {
     event.preventDefault();
 
-    if (isAdjustingStock || !adjustingProduct) return;
+    if (isAdjustingStock || isProductActionPending || !adjustingProduct) return;
 
     const values = readStockAdjustmentValues();
     const quantity = Number(values.quantity);
@@ -548,7 +648,7 @@ function renderTableMessage(message) {
 }
 
 function setListLoading(loading) {
-    const disabled = loading || isAdjustingStock;
+    const disabled = loading || isAdjustingStock || isProductActionPending;
     pagination.querySelectorAll('button[data-page]').forEach(button => {
         button.disabled = disabled || (button.dataset.page === 'previous' ? currentPage <= 1 : currentPage >= lastPage);
     });
@@ -627,6 +727,7 @@ function renderProducts() {
         const stock = Number(product.current_stock);
         const minimumStock = Number(product.minimum_stock);
         const isActive = Boolean(product.active);
+        const activeActionLabel = isActive ? 'Desactivar' : 'Activar';
         const statusLabel = !isActive
             ? '<span class="inline-flex rounded-full bg-ground px-2.5 py-1 text-xs font-medium text-muted">Inactivo</span>'
             : stock <= 0
@@ -637,6 +738,10 @@ function renderProducts() {
         const costCell = includesCostPrice
             ? `<td class="px-5 py-4 tabular-nums text-muted sm:px-6">${escapeHtml(formatCurrency(product.cost_price))}</td>`
             : '';
+        const ownerActions = isOwner ? `
+            <button type="button" data-action="toggle-active" data-id="${escapeHtml(product.id)}" aria-label="${activeActionLabel} ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">${activeActionLabel}</button>
+            <button type="button" data-action="delete" data-id="${escapeHtml(product.id)}" aria-label="Eliminar ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger">Eliminar</button>
+        ` : '';
 
         return `
             <tr class="transition-colors hover:bg-ground/60">
@@ -649,6 +754,7 @@ function renderProducts() {
                 <td class="px-5 py-4 sm:px-6">
                     <button type="button" data-action="edit" data-id="${escapeHtml(product.id)}" aria-label="Editar ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Editar</button>
                     <button type="button" data-action="stock-adjust" data-id="${escapeHtml(product.id)}" aria-label="Ajustar stock de ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Ajustar stock</button>
+                    ${ownerActions}
                 </td>
             </tr>
         `;
@@ -659,7 +765,7 @@ function renderProducts() {
 productsBody.addEventListener('click', event => {
     const button = event.target.closest('button[data-action]');
 
-    if (!button || !productsBody.contains(button) || isSubmitting || isAdjustingStock) return;
+    if (!button || !productsBody.contains(button) || isSubmitting || isAdjustingStock || isProductActionPending) return;
 
     const product = products.find(item => String(item.id) === button.dataset.id);
 
@@ -669,6 +775,10 @@ productsBody.addEventListener('click', event => {
         startEditing(product);
     } else if (button.dataset.action === 'stock-adjust') {
         startStockAdjustment(product);
+    } else if (button.dataset.action === 'toggle-active' && isOwner) {
+        toggleProductActive(product);
+    } else if (button.dataset.action === 'delete' && isOwner) {
+        deleteProduct(product);
     }
 });
 

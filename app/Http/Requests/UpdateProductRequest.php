@@ -66,6 +66,10 @@ class UpdateProductRequest extends FormRequest
             ? ['sometimes', 'required', 'numeric', 'min:0']
             : ['missing'];
 
+        $rules['active'] = $this->user()->role === UserRole::OWNER
+            ? ['sometimes', 'required', 'boolean']
+            : ['missing'];
+
         return $rules;
     }
 
