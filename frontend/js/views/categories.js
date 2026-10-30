@@ -13,10 +13,11 @@ const categoryForm = document.getElementById('category-form');
 const categoryFormHeading = document.getElementById('category-form-heading');
 const categoryFields = document.getElementById('category-fields');
 const categoryFormError = document.getElementById('category-form-error');
-const categorySubmit = document.getElementById('category-submit');
+const categoryActions = document.getElementById('category-actions');
 
 let isSubmitting = false;
-let currentEditingCategory = null;
+let editingCategory = null;
+let categories = [];
 
 mountNav();
 
@@ -33,7 +34,7 @@ function setStatus(message, tone = 'neutral') {
 function renderMessage(message, { error = false, invite = false } = {}) {
     categoriesBody.innerHTML = `
         <tr>
-            <td colspan="2" class="px-5 py-12 text-center sm:px-6">
+            <td colspan="3" class="px-5 py-12 text-center sm:px-6">
                 <p class="text-sm ${error ? 'text-danger' : 'text-muted'}">${escapeHtml(message)}</p>
                 ${invite ? '<p class="mt-1 text-sm text-muted">Creá la primera para empezar a organizar los productos de tu comercio.</p>' : ''}
                 ${error ? '<button id="retry-categories" type="button" class="mt-3 rounded-lg px-3 py-2 text-sm font-semibold text-brand hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Volver a intentar</button>' : ''}
@@ -58,7 +59,8 @@ function formatDate(value) {
     }).format(date);
 }
 
-function renderCategories(categories) {
+function renderCategories(categoryList) {
+    categories = categoryList;
     const count = categories.length;
     categoriesCount.textContent = `${count.toLocaleString('es-AR')} ${count === 1 ? 'categoría' : 'categorías'}`;
 
@@ -73,30 +75,58 @@ function renderCategories(categories) {
         <tr class="transition-colors hover:bg-ground/60">
             <th scope="row" class="px-5 py-4 font-medium text-ink sm:px-6">${escapeHtml(category.name)}</th>
             <td class="px-5 py-4 text-muted sm:px-6">${escapeHtml(formatDate(category.created_at))}</td>
+            <td class="px-5 py-4 sm:px-6">
+                <button type="button" data-action="edit" data-id="${escapeHtml(category.id)}" aria-label="Editar ${escapeHtml(category.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">
+                    Editar
+                </button>
+            </td>
         </tr>
     `).join('');
 }
 
-function renderCategorySubmitButton({ editing = null, loading = false } = {}) {
-    const isEditing = Boolean(editing);
+categoriesBody.addEventListener('click', event => {
+    const button = event.target.closest('button[data-action]');
 
-    categorySubmit.innerHTML = renderButton({
+    if (!button || !categoriesBody.contains(button)) return;
+
+    if (button.dataset.action === 'edit') {
+        const category = categories.find(item => String(item.id) === button.dataset.id);
+
+        if (category) startEditing(category);
+    }
+});
+
+function renderCategorySubmitButton({ loading = false, loadingText = null } = {}) {
+    const isEditing = Boolean(editingCategory);
+    const submitButton = renderButton({
         id: 'category-submit-button',
         text: isEditing ? 'Guardar cambios' : 'Crear categoría',
         type: 'submit',
         loading,
-        loadingText: isEditing ? 'Guardando...' : 'Creando...',
+        loadingText: loadingText ?? (isEditing ? 'Guardando...' : 'Creando...'),
         className: 'w-full min-h-11 rounded-lg py-3',
     });
+
+    const cancelButton = isEditing
+        ? renderButton({
+            id: 'category-cancel-button',
+            text: 'Cancelar',
+            variant: 'secondary',
+            disabled: loading,
+            className: 'w-full min-h-11 rounded-lg py-3',
+        })
+        : '';
+
+    categoryActions.innerHTML = `${submitButton}${cancelButton}`;
+    categoryActions.querySelector('#category-cancel-button')?.addEventListener('click', cancelEditing);
 }
 
 function renderCategoryForm(options = {}) {
-    const { editing = null, value = '', error = null, loading = false } = options;
-    const isEditing = Boolean(editing);
-    currentEditingCategory = editing;
+    const { value = '', error = null, loading = false } = options;
+    const isEditing = Boolean(editingCategory);
     const inputValue = Object.prototype.hasOwnProperty.call(options, 'value')
         ? value
-        : editing?.name ?? '';
+        : editingCategory?.name ?? '';
 
     categoryFormHeading.textContent = isEditing ? 'Editar categoría' : 'Nueva categoría';
     categoryFields.innerHTML = renderInput({
@@ -110,7 +140,22 @@ function renderCategoryForm(options = {}) {
         autoComplete: 'off',
     });
 
-    renderCategorySubmitButton({ editing, loading });
+    renderCategorySubmitButton({ loading });
+}
+
+function startEditing(category) {
+    editingCategory = category;
+    clearCategoryFormError();
+    clearCategoryFieldError();
+    renderCategoryForm();
+    focusCategoryName();
+}
+
+function cancelEditing() {
+    editingCategory = null;
+    clearCategoryFormError();
+    renderCategoryForm();
+    focusCategoryName();
 }
 
 function focusCategoryName() {
@@ -185,6 +230,8 @@ categoryForm.addEventListener('submit', async event => {
 
     const rawName = document.getElementById('category-name').value;
     const name = rawName.trim();
+    const targetCategory = editingCategory;
+    const isEditing = Boolean(targetCategory);
 
     clearCategoryFormError();
     clearCategoryFieldError();
@@ -200,23 +247,39 @@ categoryForm.addEventListener('submit', async event => {
     renderCategorySubmitButton({ loading: true });
 
     try {
-        await apiFetch('/categories', {
-            method: 'POST',
+        await apiFetch(isEditing ? `/categories/${encodeURIComponent(targetCategory.id)}` : '/categories', {
+            method: isEditing ? 'PUT' : 'POST',
             body: JSON.stringify({ name }),
         });
 
+        editingCategory = null;
+        categoryFormHeading.textContent = 'Nueva categoría';
         document.getElementById('category-name').value = '';
+        renderCategorySubmitButton({ loading: true, loadingText: 'Actualizando...' });
         const refreshed = await loadCategories({ silent: true });
-        // El alta fue exitosa aunque la lista no haya podido actualizarse.
-        setStatus('Categoría creada', 'neutral');
+        // El cambio se guardó aunque la lista no haya podido actualizarse.
+        setStatus(isEditing ? 'Cambios guardados' : 'Categoría creada', 'neutral');
 
         if (!refreshed) {
-            showCategoryFormError('La categoría se creó, pero no se pudo actualizar la lista. Recargá la página para verla.');
+            const action = isEditing ? 'Los cambios se guardaron' : 'La categoría se creó';
+            showCategoryFormError(`${action}, pero no se pudo actualizar la lista. Recargá la página para verla.`);
         }
 
         focusCategoryName();
     } catch (error) {
         if (error.status === 401) return;
+
+        if (error.status === 404 && targetCategory) {
+            editingCategory = null;
+            categoryFormHeading.textContent = 'Nueva categoría';
+            renderCategorySubmitButton({ loading: true, loadingText: 'Actualizando lista...' });
+            const refreshed = await loadCategories({ silent: true });
+            showCategoryFormError(refreshed
+                ? 'Esa categoría ya no existe.'
+                : 'Esa categoría ya no existe. No se pudo actualizar la lista; recargá la página.');
+            focusCategoryName();
+            return;
+        }
 
         const nameError = error.status === 422 ? error.data?.errors?.name?.[0] : null;
 
@@ -225,13 +288,15 @@ categoryForm.addEventListener('submit', async event => {
             renderCategoryForm({ value: currentValue, error: nameError });
             focusCategoryName();
         } else {
-            showCategoryFormError('No se pudo crear la categoría. Revisá los datos e intentá nuevamente.');
+            showCategoryFormError(isEditing
+                ? 'No se pudieron guardar los cambios. Revisá los datos e intentá nuevamente.'
+                : 'No se pudo crear la categoría. Revisá los datos e intentá nuevamente.');
             focusCategoryName();
-            console.error('Error al crear la categoría:', error);
+            console.error(isEditing ? 'Error al actualizar la categoría:' : 'Error al crear la categoría:', error);
         }
     } finally {
         isSubmitting = false;
-        renderCategorySubmitButton({ editing: currentEditingCategory });
+        renderCategorySubmitButton();
     }
 });
 
