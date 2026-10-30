@@ -9,6 +9,11 @@ const links = [
         icon: '<path stroke-linecap="round" stroke-linejoin="round" d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10Z" />',
     },
     {
+        label: 'Nueva venta',
+        href: '/views/sales.html',
+        icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l2.2 10.3a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6M10 20h.01M17 20h.01" />',
+    },
+    {
         label: 'Productos',
         href: '/views/products.html',
         icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />',
@@ -19,9 +24,9 @@ const links = [
         icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16M4 12h16M4 19h16M7 5v.01M7 12v.01M7 19v.01" />',
     },
     {
-        label: 'Nueva venta',
-        href: '/views/sales.html',
-        icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l2.2 10.3a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6M10 20h.01M17 20h.01" />',
+        label: 'Ventas',
+        href: '/views/sales-history.html',
+        icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />',
     },
 ];
 
