@@ -19,6 +19,8 @@ const categoriesErrorMessage = document.getElementById('categories-error-message
 const retryCategories = document.getElementById('retry-categories');
 const includeInactiveControl = document.getElementById('include-inactive-control');
 const includeInactive = document.getElementById('include-inactive');
+const productSearch = document.getElementById('product-search');
+const categoryFilter = document.getElementById('category-filter');
 const pagination = document.getElementById('products-pagination');
 const paginationSummary = document.getElementById('products-pagination-summary');
 const pageLabel = document.getElementById('products-page-label');
@@ -54,6 +56,9 @@ let isAdjustingStock = false;
 let adjustingProduct = null;
 let stockAdjustmentReturnFocusId = null;
 let isProductActionPending = false;
+let isLoadingProducts = false;
+let searchDebounceTimer = null;
+let latestProductsRequestId = 0;
 
 mountNav();
 
@@ -457,6 +462,12 @@ async function saveProduct(event) {
         const formChangedWhileSubmitting = Object.entries(values)
             .some(([name, value]) => currentValues[name] !== value);
         editingProduct = null;
+        if (!isEditing) {
+            window.clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = null;
+            productSearch.value = '';
+            categoryFilter.value = '';
+        }
         renderProductForm({ values: formChangedWhileSubmitting ? currentValues : emptyProductFormValues() });
         clearProductFormError();
         const successMessage = isEditing ? 'Cambios guardados' : 'Producto creado';
@@ -648,11 +659,19 @@ function renderTableMessage(message) {
 }
 
 function setListLoading(loading) {
-    const disabled = loading || isAdjustingStock || isProductActionPending;
+    const disabled = loading || isLoadingProducts || isAdjustingStock || isProductActionPending;
+
+    if (isAdjustingStock || isProductActionPending) {
+        window.clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = null;
+    }
+
     pagination.querySelectorAll('button[data-page]').forEach(button => {
         button.disabled = disabled || (button.dataset.page === 'previous' ? currentPage <= 1 : currentPage >= lastPage);
     });
     if (isOwner) includeInactive.disabled = disabled;
+    productSearch.disabled = disabled;
+    categoryFilter.disabled = disabled || !categoriesLoaded;
 }
 
 function setProductRowBusy(productId, busy) {
@@ -717,8 +736,11 @@ function renderProducts() {
 
     if (count === 0) {
         setProductsStatus('', 'neutral');
+        const hasCatalogFilters = productSearch.value.trim() || categoryFilter.value;
         renderTableMessage(productsTotal === 0
-            ? 'Todavía no hay productos registrados.'
+            ? hasCatalogFilters
+                ? 'No hay productos que coincidan con la búsqueda o la categoría seleccionada.'
+                : 'Todavía no hay productos registrados.'
             : 'No hay productos en esta página.');
         return;
     }
@@ -801,8 +823,10 @@ function updateProductPagination(meta) {
 }
 
 async function loadProducts({ page = currentPage } = {}) {
+    const requestId = ++latestProductsRequestId;
     requestedPage = page;
     productsLoaded = false;
+    isLoadingProducts = true;
     setListLoading(true);
     productsCount.textContent = '— productos';
     paginationSummary.textContent = 'Cargando productos';
@@ -816,12 +840,18 @@ async function loadProducts({ page = currentPage } = {}) {
         per_page: String(perPage),
     });
 
+    const search = productSearch.value.trim();
+    if (search) params.set('search', search);
+    if (categoryFilter.value) params.set('category_id', categoryFilter.value);
+
     if (isOwner && includeInactive.checked) {
         params.set('include_inactive', 'true');
     }
 
     try {
         const response = await apiFetch(`/products?${params.toString()}`);
+
+        if (requestId !== latestProductsRequestId) return false;
 
         if (!Array.isArray(response?.data)) {
             throw new Error('Formato de respuesta inesperado');
@@ -835,6 +865,7 @@ async function loadProducts({ page = currentPage } = {}) {
         renderProducts();
         return true;
     } catch (error) {
+        if (requestId !== latestProductsRequestId) return false;
         if (error.status === 401) return false;
 
         productsLoaded = false;
@@ -846,7 +877,10 @@ async function loadProducts({ page = currentPage } = {}) {
         console.error('Error al cargar los productos:', error);
         return false;
     } finally {
-        setListLoading(false);
+        if (requestId === latestProductsRequestId) {
+            isLoadingProducts = false;
+            setListLoading(false);
+        }
     }
 }
 
@@ -863,13 +897,21 @@ async function loadCategories() {
 
         const categorySelect = document.getElementById('category_id');
         const selectedCategory = categorySelect?.value ?? '';
+        const selectedFilterCategory = categoryFilter.value;
         const categoryHadFocus = document.activeElement === categorySelect;
         categories = response.data;
         categoriesById = new Map(categories.map(category => [String(category.id), category.name]));
         categoriesLoaded = true;
+        categoryFilter.innerHTML = `<option value="">Todas las categorías</option>${categories.map(category => `
+            <option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>
+        `).join('')}`;
+        categoryFilter.value = categories.some(category => String(category.id) === selectedFilterCategory)
+            ? selectedFilterCategory
+            : '';
         document.getElementById('product-category-field').innerHTML = renderCategorySelect(selectedCategory);
         if (categoryHadFocus) document.getElementById('category_id')?.focus();
         renderProductSubmitButton();
+        setListLoading(false);
         if (productsLoaded) renderProducts();
     } catch (error) {
         if (error.status === 401) return;
@@ -879,6 +921,7 @@ async function loadCategories() {
         const categorySelect = document.getElementById('category_id');
         document.getElementById('product-category-field').innerHTML = renderCategorySelect(categorySelect?.value ?? '');
         renderProductSubmitButton();
+        setListLoading(false);
         showCategoriesError('No se pudieron cargar los nombres de las categorías. Podés reintentar sin perder la lista de productos.');
         console.error('Error al cargar las categorías de productos:', error);
     }
@@ -906,7 +949,22 @@ stockAdjustmentForm.addEventListener('change', event => {
 stockAdjustmentForm.addEventListener('submit', submitStockAdjustment);
 retryProducts.addEventListener('click', () => loadProducts({ page: requestedPage }));
 retryCategories.addEventListener('click', loadCategories);
-includeInactive.addEventListener('change', () => loadProducts({ page: 1 }));
+
+function reloadProductsFromFilters() {
+    window.clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = null;
+    loadProducts({ page: 1 });
+}
+
+productSearch.addEventListener('input', () => {
+    window.clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = window.setTimeout(() => {
+        searchDebounceTimer = null;
+        loadProducts({ page: 1 });
+    }, 300);
+});
+categoryFilter.addEventListener('change', reloadProductsFromFilters);
+includeInactive.addEventListener('change', reloadProductsFromFilters);
 
 pagination.addEventListener('click', event => {
     const button = event.target.closest('button[data-page]');

@@ -39,6 +39,19 @@
                             </div>
                         </div>
 
+                        <div class="grid gap-3 border-b border-line px-5 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(13rem,0.55fr)] sm:px-6">
+                            <div class="space-y-2">
+                                <label for="product-search" class="block text-sm font-medium text-ink">Buscar productos</label>
+                                <input id="product-search" type="search" maxlength="255" placeholder="Buscar por nombre..." class="block min-h-11 w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:bg-ground">
+                            </div>
+                            <div class="space-y-2">
+                                <label for="category-filter" class="block text-sm font-medium text-ink">Categoría</label>
+                                <select id="category-filter" class="block min-h-11 w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:bg-ground" disabled>
+                                    <option value="">Todas las categorías</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div id="products-alert" class="mx-5 mt-4 flex flex-col gap-2 rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger sm:mx-6" role="alert" tabindex="-1" hidden>
                             <p id="products-error-message"></p>
                             <button id="retry-products" type="button" class="w-fit rounded-lg px-3 py-2 text-sm font-semibold text-brand hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Volver a intentar</button>

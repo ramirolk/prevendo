@@ -22,13 +22,32 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
+        $filters = $request->validate([
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'category_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
+        ]);
+
         $query = Product::query();
 
         if (! ($request->boolean('include_inactive') && $request->user()->role === UserRole::OWNER)) {
             $query->where('active', true);
         }
 
-        $products = $query->paginate($request->input('per_page', 15));
+        $search = trim($filters['search'] ?? '');
+        if ($search !== '') {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        if (! empty($filters['category_id'])) {
+            $query->where('category_id', $filters['category_id']);
+        }
+
+        $products = $query
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate($filters['per_page'] ?? 15);
 
         return ProductResource::collection($products);
     }
