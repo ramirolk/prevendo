@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#EDF0EE">
+    <title>Categorías | Prevendo</title>
+
+    <link rel="stylesheet" href="../css/output.css">
+</head>
+
+<body class="min-h-screen bg-ground text-ink antialiased">
+    <div class="min-h-screen md:grid md:grid-cols-[236px_minmax(0,1fr)]">
+        <div id="nav" class="md:sticky md:top-0 md:h-screen"></div>
+
+        <div class="min-w-0">
+            <main class="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
+                <section class="mb-6">
+                    <h1 class="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Categorías</h1>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                        Consultá las categorías que organizan los productos de tu comercio.
+                    </p>
+                </section>
+
+                <div class="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)]">
+                    <section class="overflow-hidden rounded-2xl border border-line bg-white shadow-sm" aria-labelledby="categories-heading">
+                        <div class="flex flex-col gap-3 border-b border-line px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                            <div>
+                                <h2 id="categories-heading" class="text-base font-semibold text-ink">Categorías del comercio</h2>
+                                <p class="mt-1 text-sm text-muted">Nombres registrados para organizar el catálogo.</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span id="categories-count" class="inline-flex items-center rounded-full bg-ground px-3 py-1 text-xs font-medium text-muted">— categorías</span>
+                                <span id="categories-status" class="text-xs font-medium text-muted" role="status">Cargando categorías</span>
+                            </div>
+                        </div>
+
+                        <p id="categories-list-alert" class="mx-5 mt-4 rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger sm:mx-6" role="alert" hidden></p>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[560px] text-left text-sm">
+                                <thead class="bg-ground/70 text-xs font-semibold uppercase tracking-wide text-muted">
+                                    <tr>
+                                        <th scope="col" class="px-5 py-3.5 sm:px-6">Nombre</th>
+                                        <th scope="col" class="px-5 py-3.5 sm:px-6">Fecha de creación</th>
+                                        <th scope="col" class="px-5 py-3.5 sm:px-6">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="categories-body" class="divide-y divide-line">
+                                    <tr>
+                                        <td colspan="3" class="px-5 py-12 text-center text-sm text-muted sm:px-6">Cargando categorías...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <aside class="rounded-2xl border border-line bg-white p-5 shadow-sm sm:p-6" aria-labelledby="category-form-heading">
+                        <h2 id="category-form-heading" class="text-base font-semibold text-ink">Nueva categoría</h2>
+                        <p class="mt-1 text-sm leading-6 text-muted">Agrupá los productos del comercio con nombres claros.</p>
+                        <form id="category-form" class="mt-5 space-y-5" novalidate>
+                            <div id="category-fields"></div>
+                            <p id="category-form-error" class="rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger" role="alert" hidden></p>
+                            <div id="category-actions" class="flex flex-col gap-2"></div>
+                        </form>
+                    </aside>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script type="module" src="../js/views/categories.js"></script>
+</body>
+</html>

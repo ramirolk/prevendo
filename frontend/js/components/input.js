@@ -6,6 +6,8 @@ function renderInput({
     type = 'text',
     required = false,
     error = null,
+    value = '',
+    maxLength = null,
     placeholder = '',
     autoComplete = null,
 }) {
@@ -14,6 +16,10 @@ function renderInput({
     const safeLabel = escapeHtml(label);
     const safeType = escapeHtml(type);
     const safeError = escapeHtml(error);
+    const safeValue = escapeHtml(value);
+    const safeMaxLength = Number.isInteger(maxLength) && maxLength > 0
+        ? escapeHtml(maxLength)
+        : null;
     const safePlaceholder = escapeHtml(placeholder);
     const safeAutoComplete = autoComplete ? escapeHtml(autoComplete) : null;
 
@@ -30,6 +36,8 @@ function renderInput({
                 type="${safeType}"
                 id="${safeId}"
                 name="${safeId}"
+                value="${safeValue}"
+                ${safeMaxLength ? `maxlength="${safeMaxLength}"` : ''}
                 ${safePlaceholder ? `placeholder="${safePlaceholder}"` : ''}
                 ${safeAutoComplete ? `autocomplete="${safeAutoComplete}"` : ''}
                 ${required ? 'required' : ''}
