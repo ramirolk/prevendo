@@ -225,6 +225,9 @@
       max-width: 96rem;
     }
   }
+  .mx-5 {
+    margin-inline: calc(var(--spacing) * 5);
+  }
   .mx-auto {
     margin-inline: auto;
   }
@@ -236,6 +239,9 @@
   }
   .mt-3 {
     margin-top: calc(var(--spacing) * 3);
+  }
+  .mt-4 {
+    margin-top: calc(var(--spacing) * 4);
   }
   .mt-5 {
     margin-top: calc(var(--spacing) * 5);
@@ -328,9 +334,6 @@
   }
   .min-w-0 {
     min-width: 0px;
-  }
-  .min-w-\[420px\] {
-    min-width: 420px;
   }
   .min-w-\[560px\] {
     min-width: 560px;
@@ -666,6 +669,14 @@
         background-color: color-mix(in oklab, var(--color-brand) 10%, transparent);
       }
     }
+    .hover\:bg-danger\/10:hover {
+      background-color: color-mix(in srgb, #B42318 10%, transparent);
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .hover\:bg-danger\/10:hover {
+        background-color: color-mix(in oklab, var(--color-danger) 10%, transparent);
+      }
+    }
     .hover\:bg-ground:hover {
       background-color: var(--color-ground);
     }
@@ -700,6 +711,9 @@
       --tw-ring-color: color-mix(in oklab, var(--color-brand) 20%, transparent);
     }
   }
+  .focus\:ring-danger:focus {
+    --tw-ring-color: var(--color-danger);
+  }
   .focus\:ring-danger\/20:focus {
     --tw-ring-color: color-mix(in srgb, #B42318 20%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
@@ -727,6 +741,9 @@
     opacity: 50%;
   }
   @media (width >= 40rem) {
+    .sm\:mx-6 {
+      margin-inline: calc(var(--spacing) * 6);
+    }
     .sm\:mt-0 {
       margin-top: 0px;
     }
