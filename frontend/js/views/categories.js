@@ -9,6 +9,7 @@ import { escapeHtml } from '../utils/escape.js';
 const categoriesBody = document.getElementById('categories-body');
 const categoriesCount = document.getElementById('categories-count');
 const categoriesStatus = document.getElementById('categories-status');
+const categoriesListAlert = document.getElementById('categories-list-alert');
 const categoryForm = document.getElementById('category-form');
 const categoryFormHeading = document.getElementById('category-form-heading');
 const categoryFields = document.getElementById('category-fields');
@@ -16,6 +17,8 @@ const categoryFormError = document.getElementById('category-form-error');
 const categoryActions = document.getElementById('category-actions');
 
 let isSubmitting = false;
+let isDeleting = false;
+let deletingCategoryId = null;
 let editingCategory = null;
 let categories = [];
 
@@ -79,6 +82,9 @@ function renderCategories(categoryList) {
                 <button type="button" data-action="edit" data-id="${escapeHtml(category.id)}" aria-label="Editar ${escapeHtml(category.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">
                     Editar
                 </button>
+                <button type="button" data-action="delete" data-id="${escapeHtml(category.id)}" aria-label="Eliminar ${escapeHtml(category.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-danger hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger" ${isDeleting && String(deletingCategoryId) === String(category.id) ? 'disabled' : ''}>
+                    Eliminar
+                </button>
             </td>
         </tr>
     `).join('');
@@ -89,12 +95,97 @@ categoriesBody.addEventListener('click', event => {
 
     if (!button || !categoriesBody.contains(button)) return;
 
-    if (button.dataset.action === 'edit') {
-        const category = categories.find(item => String(item.id) === button.dataset.id);
+    const categoryId = button.dataset.id;
+    const category = categories.find(item => String(item.id) === categoryId);
 
-        if (category) startEditing(category);
+    if (!category) return;
+
+    if (button.dataset.action === 'edit') {
+        if (isSubmitting || (isDeleting && String(deletingCategoryId) === categoryId)) return;
+
+        startEditing(category);
+    } else if (button.dataset.action === 'delete') {
+        if (isSubmitting || isDeleting) return;
+
+        deleteCategory(category);
     }
 });
+
+function showCategoriesListAlert(message) {
+    categoriesListAlert.textContent = message;
+    categoriesListAlert.hidden = false;
+}
+
+function clearCategoriesListAlert() {
+    categoriesListAlert.textContent = '';
+    categoriesListAlert.hidden = true;
+}
+
+async function refreshAfterChange(successMessage, {
+    successAlert = null,
+    refreshFailureMessage = null,
+} = {}) {
+    const refreshed = await loadCategories({ silent: true });
+
+    if (refreshed) {
+        setStatus(successMessage, 'neutral');
+        if (successAlert) showCategoriesListAlert(successAlert);
+        return true;
+    }
+
+    showCategoriesListAlert(refreshFailureMessage ?? `${successMessage}, pero no se pudo actualizar la lista. Recargá la página para verla.`);
+    return false;
+}
+
+function setCategoryRowBusy(categoryId, busy) {
+    const row = [...categoriesBody.querySelectorAll('button[data-id]')]
+        .find(button => button.dataset.id === String(categoryId))
+        ?.closest('tr');
+
+    row?.querySelectorAll('button[data-action]').forEach(button => {
+        button.disabled = busy;
+    });
+}
+
+async function deleteCategory(category) {
+    if (!window.confirm(`¿Eliminar la categoría ${category.name}?`)) return;
+
+    clearCategoriesListAlert();
+    clearCategoryFormError();
+    isDeleting = true;
+    deletingCategoryId = category.id;
+    setCategoryRowBusy(category.id, true);
+
+    try {
+        await apiFetch(`/categories/${encodeURIComponent(category.id)}`, { method: 'DELETE' });
+
+        if (String(editingCategory?.id) === String(category.id)) cancelEditing();
+
+        await refreshAfterChange('Categoría eliminada');
+        focusCategoryName();
+    } catch (error) {
+        if (error.status === 401) return;
+
+        if (error.status === 409) {
+            showCategoriesListAlert('Tiene productos asociados. Reasignalos antes de eliminarla.');
+        } else if (error.status === 404) {
+            if (String(editingCategory?.id) === String(category.id)) cancelEditing();
+
+            await refreshAfterChange('Esa categoría ya no existe', {
+                successAlert: 'Esa categoría ya no existe.',
+                refreshFailureMessage: 'Esa categoría ya no existe. No se pudo actualizar la lista; recargá la página.',
+            });
+            focusCategoryName();
+        } else {
+            showCategoriesListAlert('No se pudo eliminar la categoría. Intentá nuevamente.');
+            console.error('Error al eliminar la categoría:', error);
+        }
+    } finally {
+        isDeleting = false;
+        deletingCategoryId = null;
+        setCategoryRowBusy(category.id, false);
+    }
+}
 
 function renderCategorySubmitButton({ loading = false, loadingText = null } = {}) {
     const isEditing = Boolean(editingCategory);
@@ -226,7 +317,7 @@ categoryForm.addEventListener('input', () => {
 categoryForm.addEventListener('submit', async event => {
     event.preventDefault();
 
-    if (isSubmitting) return;
+    if (isSubmitting || isDeleting) return;
 
     const rawName = document.getElementById('category-name').value;
     const name = rawName.trim();
@@ -235,6 +326,7 @@ categoryForm.addEventListener('submit', async event => {
 
     clearCategoryFormError();
     clearCategoryFieldError();
+    clearCategoriesListAlert();
     setStatus('', 'neutral');
 
     if (!name) {
@@ -256,14 +348,7 @@ categoryForm.addEventListener('submit', async event => {
         categoryFormHeading.textContent = 'Nueva categoría';
         document.getElementById('category-name').value = '';
         renderCategorySubmitButton({ loading: true, loadingText: 'Actualizando...' });
-        const refreshed = await loadCategories({ silent: true });
-        // El cambio se guardó aunque la lista no haya podido actualizarse.
-        setStatus(isEditing ? 'Cambios guardados' : 'Categoría creada', 'neutral');
-
-        if (!refreshed) {
-            const action = isEditing ? 'Los cambios se guardaron' : 'La categoría se creó';
-            showCategoryFormError(`${action}, pero no se pudo actualizar la lista. Recargá la página para verla.`);
-        }
+        await refreshAfterChange(isEditing ? 'Cambios guardados' : 'Categoría creada');
 
         focusCategoryName();
     } catch (error) {
@@ -273,10 +358,10 @@ categoryForm.addEventListener('submit', async event => {
             editingCategory = null;
             categoryFormHeading.textContent = 'Nueva categoría';
             renderCategorySubmitButton({ loading: true, loadingText: 'Actualizando lista...' });
-            const refreshed = await loadCategories({ silent: true });
-            showCategoryFormError(refreshed
-                ? 'Esa categoría ya no existe.'
-                : 'Esa categoría ya no existe. No se pudo actualizar la lista; recargá la página.');
+            await refreshAfterChange('Esa categoría ya no existe', {
+                successAlert: 'Esa categoría ya no existe.',
+                refreshFailureMessage: 'Esa categoría ya no existe. No se pudo actualizar la lista; recargá la página.',
+            });
             focusCategoryName();
             return;
         }
