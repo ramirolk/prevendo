@@ -22,6 +22,8 @@ const pagination = document.getElementById('products-pagination');
 const paginationSummary = document.getElementById('products-pagination-summary');
 const pageLabel = document.getElementById('products-page-label');
 const productForm = document.getElementById('product-form');
+const productFormHeading = document.getElementById('product-form-heading');
+const productFormDescription = document.getElementById('product-form-description');
 const productFields = document.getElementById('product-fields');
 const productFormError = document.getElementById('product-form-error');
 const productActions = document.getElementById('product-actions');
@@ -39,6 +41,7 @@ let categories = [];
 let categoriesLoaded = false;
 let categoriesLoadFailed = false;
 let isSubmitting = false;
+let editingProduct = null;
 
 mountNav();
 
@@ -52,6 +55,17 @@ function emptyProductFormValues() {
         sale_price: '',
         cost_price: '',
         minimum_stock: '',
+    };
+}
+
+function productFormValues(product) {
+    return {
+        category_id: String(product.category_id ?? ''),
+        name: product.name ?? '',
+        description: product.description ?? '',
+        sale_price: product.sale_price ?? '',
+        cost_price: product.cost_price ?? '',
+        minimum_stock: product.minimum_stock ?? '',
     };
 }
 
@@ -85,7 +99,8 @@ function renderCategorySelect(value = '', error = null) {
     `;
 }
 
-function renderProductForm({ values = emptyProductFormValues(), errors = {} } = {}) {
+function renderProductForm({ values = editingProduct ? productFormValues(editingProduct) : emptyProductFormValues(), errors = {} } = {}) {
+    const isEditing = Boolean(editingProduct);
     const fields = [
         `<div id="product-category-field">${renderCategorySelect(values.category_id, getProductFieldError(errors, 'category_id'))}</div>`,
         `<div data-product-field>${renderInput({ id: 'product-name', name: 'name', label: 'Nombre', required: true, value: values.name, maxLength: 255, error: getProductFieldError(errors, 'name'), placeholder: 'Ej. Cinta aisladora', autoComplete: 'off' })}</div>`,
@@ -98,25 +113,75 @@ function renderProductForm({ values = emptyProductFormValues(), errors = {} } = 
     ];
 
     if (isOwner) {
-        fields.push(`<div data-product-field>${renderInput({ id: 'product-cost-price', name: 'cost_price', label: 'Costo', type: 'number', required: true, value: values.cost_price, min: 0, step: 0.01, error: getProductFieldError(errors, 'cost_price'), placeholder: '0,00' })}</div>`);
+        const costIsRequired = !isEditing || editingProduct.cost_price !== null && editingProduct.cost_price !== undefined;
+        fields.push(`<div data-product-field>${renderInput({ id: 'product-cost-price', name: 'cost_price', label: 'Costo', type: 'number', required: costIsRequired, value: values.cost_price, min: 0, step: 0.01, error: getProductFieldError(errors, 'cost_price'), placeholder: costIsRequired ? '0,00' : 'Aún sin registrar' })}</div>`);
     }
 
     fields.push(`<div data-product-field>${renderInput({ id: 'product-minimum-stock', name: 'minimum_stock', label: 'Stock mínimo', type: 'number', required: true, value: values.minimum_stock, min: 0, step: 1, error: getProductFieldError(errors, 'minimum_stock'), placeholder: '0' })}</div>`);
 
+    productFormHeading.textContent = isEditing ? 'Editar producto' : 'Nuevo producto';
+    productFormDescription.textContent = isEditing
+        ? 'Actualizá los datos del producto. El stock actual se gestiona con ajustes de inventario.'
+        : 'Completá los datos para incorporarlo al inventario.';
     productFields.innerHTML = fields.join('');
     renderProductSubmitButton();
 }
 
 function renderProductSubmitButton({ loading = false } = {}) {
-    productActions.innerHTML = renderButton({
+    const isEditing = Boolean(editingProduct);
+    const submitButton = renderButton({
         id: 'product-submit-button',
-        text: 'Crear producto',
+        text: isEditing ? 'Guardar cambios' : 'Crear producto',
         type: 'submit',
         loading,
-        loadingText: 'Creando...',
+        loadingText: isEditing ? 'Guardando...' : 'Creando...',
         disabled: !categoriesLoaded || categories.length === 0,
         className: 'w-full min-h-11 rounded-lg py-3',
     });
+    const cancelButton = isEditing
+        ? renderButton({
+            id: 'product-cancel-button',
+            text: 'Cancelar',
+            variant: 'secondary',
+            disabled: loading,
+            className: 'w-full min-h-11 rounded-lg py-3',
+        })
+        : '';
+
+    productActions.innerHTML = `${submitButton}${cancelButton}`;
+    productActions.querySelector('#product-cancel-button')?.addEventListener('click', cancelEditing);
+}
+
+function startEditing(product) {
+    editingProduct = product;
+    clearProductFormError();
+    clearProductsError();
+    renderProductForm({ values: productFormValues(product) });
+    focusProductField('name');
+}
+
+function cancelEditing() {
+    editingProduct = null;
+    clearProductFormError();
+    renderProductForm({ values: emptyProductFormValues() });
+    focusProductField('name');
+}
+
+async function refreshProductsAfterChange(successMessage, {
+    page = 1,
+    successAlert = null,
+    refreshFailureMessage = null,
+} = {}) {
+    const refreshed = await loadProducts({ page });
+
+    if (refreshed) {
+        setProductsStatus(successMessage, 'neutral');
+        if (successAlert) showProductsError(successAlert);
+        return true;
+    }
+
+    showProductsError(refreshFailureMessage ?? `${successMessage}, pero no se pudo actualizar la lista. Volvé a intentar para verla.`);
+    return false;
 }
 
 function clearProductFormError() {
@@ -159,12 +224,14 @@ function clearProductFieldError(target) {
     error.remove();
 }
 
-async function createProduct(event) {
+async function saveProduct(event) {
     event.preventDefault();
 
     if (isSubmitting || !categoriesLoaded || categories.length === 0) return;
 
     const values = readProductFormValues();
+    const targetProduct = editingProduct;
+    const isEditing = Boolean(targetProduct);
     const payload = {
         category_id: values.category_id,
         name: values.name.trim(),
@@ -184,8 +251,23 @@ async function createProduct(event) {
     }
 
     if (isOwner) {
-        payload.cost_price = values.cost_price;
-        if (values.sale_price !== '' && values.cost_price !== '' && Number(values.sale_price) < Number(values.cost_price)) {
+        const costIsRequired = !isEditing || targetProduct.cost_price !== null && targetProduct.cost_price !== undefined;
+
+        if (costIsRequired && values.cost_price === '') {
+            renderProductForm({ values, errors: { cost_price: ['El costo es obligatorio.'] } });
+            focusProductField('cost_price');
+            return;
+        }
+
+        if (values.cost_price !== '') {
+            payload.cost_price = values.cost_price;
+        }
+
+        const comparisonCost = values.cost_price !== ''
+            ? Number(values.cost_price)
+            : Number(targetProduct?.cost_price);
+
+        if (values.sale_price !== '' && Number.isFinite(comparisonCost) && Number(values.sale_price) < comparisonCost) {
             renderProductForm({ values, errors: { sale_price: ['El precio de venta debe ser mayor o igual al costo.'] } });
             focusProductField('sale_price');
             return;
@@ -196,31 +278,40 @@ async function createProduct(event) {
     renderProductSubmitButton({ loading: true });
 
     try {
-        await apiFetch('/products', {
-            method: 'POST',
+        await apiFetch(isEditing ? `/products/${encodeURIComponent(targetProduct.id)}` : '/products', {
+            method: isEditing ? 'PUT' : 'POST',
             body: JSON.stringify(payload),
         });
 
         const currentValues = readProductFormValues();
         const formChangedWhileSubmitting = Object.entries(values)
             .some(([name, value]) => currentValues[name] !== value);
-
-        if (!formChangedWhileSubmitting) {
-            productForm.querySelectorAll('input, select, textarea').forEach(field => {
-                field.value = '';
-            });
-        }
+        editingProduct = null;
+        renderProductForm({ values: formChangedWhileSubmitting ? currentValues : emptyProductFormValues() });
         clearProductFormError();
-        const refreshed = await loadProducts({ page: 1 });
-        setProductsStatus('Producto creado', 'neutral');
-
-        if (!refreshed) {
-            showProductsError('El producto se creó, pero no se pudo actualizar la lista. Volvé a intentar para verlo.');
-        }
+        const successMessage = isEditing ? 'Cambios guardados' : 'Producto creado';
+        await refreshProductsAfterChange(successMessage, {
+            page: isEditing ? currentPage : 1,
+            refreshFailureMessage: isEditing
+                ? 'Los cambios se guardaron, pero no se pudo actualizar la lista. Volvé a intentar para verla.'
+                : 'El producto se creó, pero no se pudo actualizar la lista. Volvé a intentar para verlo.',
+        });
 
         focusProductField('name');
     } catch (error) {
         if (error.status === 401) return;
+
+        if (error.status === 404 && targetProduct) {
+            editingProduct = null;
+            renderProductForm({ values: emptyProductFormValues() });
+            await refreshProductsAfterChange('Ese producto ya no existe', {
+                page: currentPage,
+                successAlert: 'Ese producto ya no existe.',
+                refreshFailureMessage: 'Ese producto ya no existe. No se pudo actualizar la lista; volvé a intentar.',
+            });
+            focusProductField('name');
+            return;
+        }
 
         if (error.status === 422 && error.data?.errors) {
             const errors = error.data.errors;
@@ -230,9 +321,11 @@ async function createProduct(event) {
                 .find(name => getProductFieldError(errors, name));
             focusProductField(firstInvalidField);
         } else {
-            showProductFormError('No se pudo crear el producto. Revisá los datos e intentá nuevamente.');
+            showProductFormError(isEditing
+                ? 'No se pudieron guardar los cambios. Revisá los datos e intentá nuevamente.'
+                : 'No se pudo crear el producto. Revisá los datos e intentá nuevamente.');
             focusProductField('name');
-            console.error('Error al crear el producto:', error);
+            console.error(isEditing ? 'Error al actualizar el producto:' : 'Error al crear el producto:', error);
         }
     } finally {
         isSubmitting = false;
@@ -271,7 +364,7 @@ function clearCategoriesError() {
 }
 
 function renderTableMessage(message) {
-    const columnCount = includesCostPrice ? 6 : 5;
+    const columnCount = includesCostPrice ? 7 : 6;
     productsBody.innerHTML = `
         <tr>
             <td colspan="${columnCount}" class="px-5 py-12 text-center text-sm text-muted sm:px-6">${escapeHtml(message)}</td>
@@ -323,6 +416,7 @@ function renderProducts() {
     columns.push(
         '<th scope="col" class="px-5 py-3.5 sm:px-6">Stock</th>',
         '<th scope="col" class="px-5 py-3.5 sm:px-6">Estado</th>',
+        '<th scope="col" class="px-5 py-3.5 sm:px-6">Acciones</th>',
     );
     productsHead.innerHTML = `<tr>${columns.join('')}</tr>`;
 
@@ -366,11 +460,24 @@ function renderProducts() {
                 ${costCell}
                 <td class="px-5 py-4 tabular-nums text-ink sm:px-6">${escapeHtml(formatNumber(product.current_stock))}</td>
                 <td class="px-5 py-4 sm:px-6">${statusLabel}</td>
+                <td class="px-5 py-4 sm:px-6">
+                    <button type="button" data-action="edit" data-id="${escapeHtml(product.id)}" aria-label="Editar ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Editar</button>
+                </td>
             </tr>
         `;
     }).join('');
     setProductsStatus('', 'neutral');
 }
+
+productsBody.addEventListener('click', event => {
+    const button = event.target.closest('button[data-action="edit"]');
+
+    if (!button || !productsBody.contains(button) || isSubmitting) return;
+
+    const product = products.find(item => String(item.id) === button.dataset.id);
+
+    if (product) startEditing(product);
+});
 
 let productsTotal = 0;
 let productsFrom = 0;
@@ -484,7 +591,7 @@ productForm.addEventListener('change', event => {
     clearProductFieldError(event.target);
 });
 
-productForm.addEventListener('submit', createProduct);
+productForm.addEventListener('submit', saveProduct);
 retryProducts.addEventListener('click', () => loadProducts({ page: requestedPage }));
 retryCategories.addEventListener('click', loadCategories);
 includeInactive.addEventListener('change', () => loadProducts({ page: 1 }));

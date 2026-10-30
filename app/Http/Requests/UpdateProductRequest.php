@@ -53,6 +53,13 @@ class UpdateProductRequest extends FormRequest
                 'min:0',
             ],
 
+            'minimum_stock' => [
+                'sometimes',
+                'required',
+                'integer',
+                'min:0',
+            ],
+
         ];
 
         $rules['cost_price'] = $this->user()->role === UserRole::OWNER
