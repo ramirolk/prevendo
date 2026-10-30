@@ -26,7 +26,7 @@
                     <section class="overflow-hidden rounded-2xl border border-line bg-white shadow-sm" aria-labelledby="products-heading">
                         <div class="flex flex-col gap-3 border-b border-line px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                             <div>
-                                <h2 id="products-heading" class="text-base font-semibold text-ink">Productos del comercio</h2>
+                            <h2 id="products-heading" tabindex="-1" class="text-base font-semibold text-ink">Productos del comercio</h2>
                                 <p class="mt-1 text-sm text-muted">Inventario registrado y disponibilidad actual.</p>
                             </div>
                             <div class="flex flex-wrap items-center gap-3">
@@ -50,7 +50,7 @@
                         </div>
 
                         <div class="overflow-x-auto">
-                            <table id="products-table" class="w-full min-w-[680px] text-left text-sm">
+                            <table id="products-table" class="w-full min-w-[800px] text-left text-sm">
                                 <thead id="products-head" class="bg-ground/70 text-xs font-semibold uppercase tracking-wide text-muted"></thead>
                                 <tbody id="products-body" class="divide-y divide-line">
                                     <tr>
@@ -80,6 +80,17 @@
                         </form>
                     </aside>
                 </div>
+
+                <section id="stock-adjustment-panel" class="mt-4 max-w-3xl rounded-2xl border border-line bg-white p-5 shadow-sm sm:p-6" aria-labelledby="stock-adjustment-heading" hidden>
+                    <h2 id="stock-adjustment-heading" class="text-base font-semibold text-ink">Ajustar stock</h2>
+                    <p class="mt-1 text-sm leading-6 text-muted">Sumá unidades con una cantidad positiva o retiralas con una negativa. El stock no puede quedar por debajo de cero.</p>
+                    <p class="mt-4 text-sm font-medium text-ink"><span id="stock-adjustment-product"></span> · Stock actual: <span id="stock-adjustment-current" class="tabular-nums"></span></p>
+                    <form id="stock-adjustment-form" class="mt-5 space-y-5" novalidate>
+                        <div id="stock-adjustment-fields" class="space-y-4"></div>
+                        <p id="stock-adjustment-error" class="rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger" role="alert" hidden></p>
+                        <div id="stock-adjustment-actions" class="flex flex-col gap-2 sm:flex-row sm:justify-end"></div>
+                    </form>
+                </section>
             </main>
         </div>
     </div>

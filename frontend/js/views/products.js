@@ -7,6 +7,7 @@ import { mountNav } from '../layout/nav.js';
 import { escapeHtml } from '../utils/escape.js';
 
 const productsHead = document.getElementById('products-head');
+const productsHeading = document.getElementById('products-heading');
 const productsBody = document.getElementById('products-body');
 const productsCount = document.getElementById('products-count');
 const productsStatus = document.getElementById('products-status');
@@ -27,6 +28,13 @@ const productFormDescription = document.getElementById('product-form-description
 const productFields = document.getElementById('product-fields');
 const productFormError = document.getElementById('product-form-error');
 const productActions = document.getElementById('product-actions');
+const stockAdjustmentPanel = document.getElementById('stock-adjustment-panel');
+const stockAdjustmentProduct = document.getElementById('stock-adjustment-product');
+const stockAdjustmentCurrent = document.getElementById('stock-adjustment-current');
+const stockAdjustmentForm = document.getElementById('stock-adjustment-form');
+const stockAdjustmentFields = document.getElementById('stock-adjustment-fields');
+const stockAdjustmentError = document.getElementById('stock-adjustment-error');
+const stockAdjustmentActions = document.getElementById('stock-adjustment-actions');
 
 const perPage = 10;
 const isOwner = getRole() === 'owner';
@@ -42,6 +50,9 @@ let categoriesLoaded = false;
 let categoriesLoadFailed = false;
 let isSubmitting = false;
 let editingProduct = null;
+let isAdjustingStock = false;
+let adjustingProduct = null;
+let stockAdjustmentReturnFocusId = null;
 
 mountNav();
 
@@ -135,7 +146,7 @@ function renderProductSubmitButton({ loading = false } = {}) {
         type: 'submit',
         loading,
         loadingText: isEditing ? 'Guardando...' : 'Creando...',
-        disabled: !categoriesLoaded || categories.length === 0,
+        disabled: isAdjustingStock || !categoriesLoaded || categories.length === 0,
         className: 'w-full min-h-11 rounded-lg py-3',
     });
     const cancelButton = isEditing
@@ -150,6 +161,65 @@ function renderProductSubmitButton({ loading = false } = {}) {
 
     productActions.innerHTML = `${submitButton}${cancelButton}`;
     productActions.querySelector('#product-cancel-button')?.addEventListener('click', cancelEditing);
+}
+
+function renderStockAdjustmentForm({ values = { quantity: '', reason: '' }, errors = {} } = {}) {
+    if (!adjustingProduct) return;
+
+    const currentStock = Number(adjustingProduct.current_stock);
+    const quantityError = getProductFieldError(errors, 'quantity');
+    const reasonError = getProductFieldError(errors, 'reason');
+    stockAdjustmentProduct.textContent = adjustingProduct.name;
+    stockAdjustmentCurrent.textContent = formatNumber(currentStock);
+    stockAdjustmentFields.innerHTML = `
+        <div data-product-field>${renderInput({ id: 'stock-adjustment-quantity', name: 'quantity', label: 'Cantidad a ajustar', type: 'number', required: true, value: values.quantity, min: -Math.max(0, currentStock), step: 1, error: quantityError, placeholder: 'Ej. 12 o -3' })}</div>
+        <div data-product-field>${renderInput({ id: 'stock-adjustment-reason', name: 'reason', label: 'Motivo', required: true, value: values.reason, maxLength: 255, error: reasonError, placeholder: 'Ej. Reposición o merma', autoComplete: 'off' })}</div>
+    `;
+    renderStockAdjustmentButtons();
+}
+
+function renderStockAdjustmentButtons({ loading = false } = {}) {
+    stockAdjustmentActions.innerHTML = `
+        ${renderButton({ id: 'stock-adjustment-submit', text: 'Guardar ajuste', type: 'submit', loading, loadingText: 'Guardando...', className: 'min-h-11 rounded-lg py-3' })}
+        ${renderButton({ id: 'stock-adjustment-cancel', text: 'Cancelar', variant: 'secondary', disabled: loading, className: 'min-h-11 rounded-lg py-3' })}
+    `;
+    stockAdjustmentActions.querySelector('#stock-adjustment-cancel')?.addEventListener('click', cancelStockAdjustment);
+}
+
+function clearStockAdjustmentError() {
+    stockAdjustmentError.textContent = '';
+    stockAdjustmentError.hidden = true;
+}
+
+function showStockAdjustmentError(message) {
+    stockAdjustmentError.textContent = message;
+    stockAdjustmentError.hidden = false;
+}
+
+function startStockAdjustment(product) {
+    adjustingProduct = product;
+    stockAdjustmentReturnFocusId = String(product.id);
+    clearStockAdjustmentError();
+    stockAdjustmentPanel.hidden = false;
+    renderStockAdjustmentForm();
+    document.getElementById('stock-adjustment-quantity')?.focus();
+}
+
+function focusStockAdjustmentTrigger(productId) {
+    const trigger = [...productsBody.querySelectorAll('button[data-action="stock-adjust"]')]
+        .find(button => button.dataset.id === String(productId));
+
+    (trigger ?? productsHeading).focus();
+}
+
+function cancelStockAdjustment() {
+    const productId = stockAdjustmentReturnFocusId;
+    adjustingProduct = null;
+    stockAdjustmentPanel.hidden = true;
+    clearStockAdjustmentError();
+    stockAdjustmentForm.reset();
+
+    if (productId) focusStockAdjustmentTrigger(productId);
 }
 
 function startEditing(product) {
@@ -227,7 +297,7 @@ function clearProductFieldError(target) {
 async function saveProduct(event) {
     event.preventDefault();
 
-    if (isSubmitting || !categoriesLoaded || categories.length === 0) return;
+    if (isSubmitting || isAdjustingStock || !categoriesLoaded || categories.length === 0) return;
 
     const values = readProductFormValues();
     const targetProduct = editingProduct;
@@ -333,6 +403,111 @@ async function saveProduct(event) {
     }
 }
 
+function readStockAdjustmentValues() {
+    return {
+        quantity: stockAdjustmentForm.elements.namedItem('quantity')?.value ?? '',
+        reason: stockAdjustmentForm.elements.namedItem('reason')?.value ?? '',
+    };
+}
+
+async function submitStockAdjustment(event) {
+    event.preventDefault();
+
+    if (isAdjustingStock || !adjustingProduct) return;
+
+    const values = readStockAdjustmentValues();
+    const quantity = Number(values.quantity);
+    const reason = values.reason.trim();
+    const currentStock = Number(adjustingProduct.current_stock);
+
+    clearStockAdjustmentError();
+
+    if (values.quantity === '' || !Number.isInteger(quantity) || quantity === 0) {
+        renderStockAdjustmentForm({ values, errors: { quantity: ['Ingresá una cantidad entera distinta de cero.'] } });
+        document.getElementById('stock-adjustment-quantity')?.focus();
+        return;
+    }
+
+    if (currentStock + quantity < 0) {
+        renderStockAdjustmentForm({ values, errors: { quantity: ['La cantidad a retirar supera el stock disponible.'] } });
+        document.getElementById('stock-adjustment-quantity')?.focus();
+        return;
+    }
+
+    if (!reason) {
+        renderStockAdjustmentForm({ values, errors: { reason: ['El motivo es obligatorio.'] } });
+        document.getElementById('stock-adjustment-reason')?.focus();
+        return;
+    }
+
+    isAdjustingStock = true;
+    const productId = adjustingProduct.id;
+    setProductRowBusy(productId, true);
+    setListLoading(true);
+    renderProductSubmitButton();
+    renderStockAdjustmentButtons({ loading: true });
+
+    try {
+        await apiFetch(`/products/${encodeURIComponent(productId)}/stock-adjustments`, {
+            method: 'POST',
+            body: JSON.stringify({ quantity, reason }),
+        });
+
+        adjustingProduct = null;
+        stockAdjustmentPanel.hidden = true;
+        stockAdjustmentForm.reset();
+        clearStockAdjustmentError();
+        const refreshed = await loadProducts({ page: currentPage });
+
+        if (refreshed) {
+            setProductsStatus('Stock actualizado', 'neutral');
+            setProductRowBusy(productId, false);
+            focusStockAdjustmentTrigger(productId);
+        } else {
+            showProductsError('El ajuste se guardó, pero no se pudo actualizar la lista. Volvé a intentar para ver el stock actualizado.');
+            retryProducts.focus();
+        }
+    } catch (error) {
+        if (error.status === 401) return;
+
+        if (error.status === 409) {
+            showStockAdjustmentError('El ajuste dejaría el stock por debajo de cero. Revisá la cantidad ingresada.');
+            document.getElementById('stock-adjustment-quantity')?.focus();
+        } else if (error.status === 404) {
+            const productId = adjustingProduct.id;
+            adjustingProduct = null;
+            stockAdjustmentPanel.hidden = true;
+
+            if (String(editingProduct?.id) === String(productId)) {
+                editingProduct = null;
+                renderProductForm({ values: emptyProductFormValues() });
+            }
+
+            const refreshed = await loadProducts({ page: currentPage });
+            showProductsError(refreshed
+                ? 'Ese producto ya no existe.'
+                : 'Ese producto ya no existe. No se pudo actualizar la lista; volvé a intentar.');
+            retryProducts.focus();
+        } else if (error.status === 422 && error.data?.errors) {
+            const errors = error.data.errors;
+            renderStockAdjustmentForm({ values: readStockAdjustmentValues(), errors });
+            document.getElementById(errors.quantity ? 'stock-adjustment-quantity' : 'stock-adjustment-reason')?.focus();
+        } else {
+            showStockAdjustmentError('No se pudo ajustar el stock. Revisá los datos e intentá nuevamente.');
+            document.getElementById('stock-adjustment-quantity')?.focus();
+            console.error('Error al ajustar el stock del producto:', error);
+        }
+    } finally {
+        isAdjustingStock = false;
+        setProductRowBusy(productId, false);
+        setListLoading(false);
+        renderProductSubmitButton();
+        if (stockAdjustmentPanel && !stockAdjustmentPanel.hidden && adjustingProduct) {
+            renderStockAdjustmentButtons();
+        }
+    }
+}
+
 function setProductsStatus(message, tone = 'neutral') {
     const tones = {
         neutral: 'text-muted',
@@ -373,10 +548,21 @@ function renderTableMessage(message) {
 }
 
 function setListLoading(loading) {
+    const disabled = loading || isAdjustingStock;
     pagination.querySelectorAll('button[data-page]').forEach(button => {
-        button.disabled = loading || (button.dataset.page === 'previous' ? currentPage <= 1 : currentPage >= lastPage);
+        button.disabled = disabled || (button.dataset.page === 'previous' ? currentPage <= 1 : currentPage >= lastPage);
     });
-    if (isOwner) includeInactive.disabled = loading;
+    if (isOwner) includeInactive.disabled = disabled;
+}
+
+function setProductRowBusy(productId, busy) {
+    const row = [...productsBody.querySelectorAll('button[data-id]')]
+        .find(button => button.dataset.id === String(productId))
+        ?.closest('tr');
+
+    row?.querySelectorAll('button[data-action]').forEach(button => {
+        button.disabled = busy;
+    });
 }
 
 function formatCurrency(value) {
@@ -462,6 +648,7 @@ function renderProducts() {
                 <td class="px-5 py-4 sm:px-6">${statusLabel}</td>
                 <td class="px-5 py-4 sm:px-6">
                     <button type="button" data-action="edit" data-id="${escapeHtml(product.id)}" aria-label="Editar ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Editar</button>
+                    <button type="button" data-action="stock-adjust" data-id="${escapeHtml(product.id)}" aria-label="Ajustar stock de ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Ajustar stock</button>
                 </td>
             </tr>
         `;
@@ -470,13 +657,19 @@ function renderProducts() {
 }
 
 productsBody.addEventListener('click', event => {
-    const button = event.target.closest('button[data-action="edit"]');
+    const button = event.target.closest('button[data-action]');
 
-    if (!button || !productsBody.contains(button) || isSubmitting) return;
+    if (!button || !productsBody.contains(button) || isSubmitting || isAdjustingStock) return;
 
     const product = products.find(item => String(item.id) === button.dataset.id);
 
-    if (product) startEditing(product);
+    if (!product) return;
+
+    if (button.dataset.action === 'edit') {
+        startEditing(product);
+    } else if (button.dataset.action === 'stock-adjust') {
+        startStockAdjustment(product);
+    }
 });
 
 let productsTotal = 0;
@@ -592,6 +785,15 @@ productForm.addEventListener('change', event => {
 });
 
 productForm.addEventListener('submit', saveProduct);
+stockAdjustmentForm.addEventListener('input', event => {
+    clearStockAdjustmentError();
+    clearProductFieldError(event.target);
+});
+stockAdjustmentForm.addEventListener('change', event => {
+    clearStockAdjustmentError();
+    clearProductFieldError(event.target);
+});
+stockAdjustmentForm.addEventListener('submit', submitStockAdjustment);
 retryProducts.addEventListener('click', () => loadProducts({ page: requestedPage }));
 retryCategories.addEventListener('click', loadCategories);
 includeInactive.addEventListener('change', () => loadProducts({ page: 1 }));
