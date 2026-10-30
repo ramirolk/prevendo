@@ -10,16 +10,18 @@
 </head>
 
 <body class="min-h-screen bg-ground text-ink antialiased">
-    <div class="min-h-screen md:grid md:grid-cols-[236px_minmax(0,1fr)]">
-        <div id="nav" class="md:sticky md:top-0 md:h-screen"></div>
+    <div id="nav"></div>
 
-        <div class="min-w-0">
-            <header class="flex h-14 items-center justify-between gap-4 border-b border-line bg-white px-4 sm:px-6 lg:px-8">
-                <span class="text-sm font-medium text-muted">Panel de control</span>
+    <header class="flex h-16 items-center justify-between gap-4 border-b border-line bg-white px-4 sm:px-6 lg:px-8">
+        <div id="nav-toggle"></div>
+        <div data-nav-toolbar-content class="flex min-w-0 flex-1 items-center justify-between gap-4">
+            <span class="text-sm font-medium text-ink">Prevendo</span>
                 <time id="current-date" class="text-xs font-medium text-muted"></time>
-            </header>
+        </div>
+    </header>
 
-            <main class="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
+    <div data-nav-content>
+            <main class="w-full px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
                 <section class="mb-6">
                     <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Inicio</p>
                     <h1 class="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
@@ -113,7 +115,6 @@
                     </div>
                 </section>
             </main>
-        </div>
     </div>
 
     <script type="module" src="../js/views/dashboard.js"></script>

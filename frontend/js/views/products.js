@@ -212,8 +212,8 @@ function startStockAdjustment(product) {
 }
 
 function focusStockAdjustmentTrigger(productId) {
-    const trigger = [...productsBody.querySelectorAll('button[data-action="stock-adjust"]')]
-        .find(button => button.dataset.id === String(productId));
+    const trigger = [...productsBody.querySelectorAll('select[data-action-menu]')]
+        .find(select => select.dataset.id === String(productId));
 
     (trigger ?? productsHeading).focus();
 }
@@ -228,9 +228,9 @@ function cancelStockAdjustment() {
     if (productId) focusStockAdjustmentTrigger(productId);
 }
 
-function focusProductAction(productId, action) {
-    const trigger = [...productsBody.querySelectorAll('button[data-action]')]
-        .find(button => button.dataset.id === String(productId) && button.dataset.action === action);
+function focusProductAction(productId) {
+    const trigger = [...productsBody.querySelectorAll('select[data-action-menu]')]
+        .find(select => select.dataset.id === String(productId));
 
     if (trigger && !trigger.disabled) {
         trigger.focus();
@@ -269,7 +269,7 @@ async function runProductAction(product, {
         if (refreshed) {
             setProductsStatus(successMessage, 'neutral');
             if (focusAction) {
-                focusProductAction(product.id, focusAction);
+                focusProductAction(product.id);
             } else {
                 productsHeading.focus();
             }
@@ -675,13 +675,12 @@ function setListLoading(loading) {
 }
 
 function setProductRowBusy(productId, busy) {
-    const row = [...productsBody.querySelectorAll('button[data-id]')]
-        .find(button => button.dataset.id === String(productId))
+    const row = [...productsBody.querySelectorAll('[data-id]')]
+        .find(control => control.dataset.id === String(productId))
         ?.closest('tr');
 
-    row?.querySelectorAll('button[data-action]').forEach(button => {
-        button.disabled = busy;
-    });
+    const actionMenu = row?.querySelector('select[data-action-menu]');
+    if (actionMenu) actionMenu.disabled = busy;
 }
 
 function formatCurrency(value) {
@@ -761,8 +760,8 @@ function renderProducts() {
             ? `<td class="px-5 py-4 tabular-nums text-muted sm:px-6">${escapeHtml(formatCurrency(product.cost_price))}</td>`
             : '';
         const ownerActions = isOwner ? `
-            <button type="button" data-action="toggle-active" data-id="${escapeHtml(product.id)}" aria-label="${activeActionLabel} ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">${activeActionLabel}</button>
-            <button type="button" data-action="delete" data-id="${escapeHtml(product.id)}" aria-label="Eliminar ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger">Eliminar</button>
+            <option value="toggle-active">${activeActionLabel}</option>
+            <option value="delete">Eliminar</option>
         ` : '';
 
         return `
@@ -774,9 +773,12 @@ function renderProducts() {
                 <td class="px-5 py-4 tabular-nums text-ink sm:px-6">${escapeHtml(formatNumber(product.current_stock))}</td>
                 <td class="px-5 py-4 sm:px-6">${statusLabel}</td>
                 <td class="px-5 py-4 sm:px-6">
-                    <button type="button" data-action="edit" data-id="${escapeHtml(product.id)}" aria-label="Editar ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Editar</button>
-                    <button type="button" data-action="stock-adjust" data-id="${escapeHtml(product.id)}" aria-label="Ajustar stock de ${escapeHtml(product.name)}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Ajustar stock</button>
-                    ${ownerActions}
+                    <select data-action-menu data-id="${escapeHtml(product.id)}" aria-label="Acciones para ${escapeHtml(product.name)}" class="block min-h-11 min-w-36 rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:bg-ground">
+                        <option value="">Acciones</option>
+                        <option value="edit">Editar</option>
+                        <option value="stock-adjust">Ajustar stock</option>
+                        ${ownerActions}
+                    </select>
                 </td>
             </tr>
         `;
@@ -784,22 +786,28 @@ function renderProducts() {
     setProductsStatus('', 'neutral');
 }
 
-productsBody.addEventListener('click', event => {
-    const button = event.target.closest('button[data-action]');
+productsBody.addEventListener('change', event => {
+    const actionMenu = event.target.closest('select[data-action-menu]');
 
-    if (!button || !productsBody.contains(button) || isSubmitting || isAdjustingStock || isProductActionPending) return;
+    if (!actionMenu || !productsBody.contains(actionMenu)) return;
 
-    const product = products.find(item => String(item.id) === button.dataset.id);
+    const action = actionMenu.value;
+    const productId = actionMenu.dataset.id;
+    actionMenu.value = '';
+
+    if (!action || isSubmitting || isAdjustingStock || isProductActionPending) return;
+
+    const product = products.find(item => String(item.id) === productId);
 
     if (!product) return;
 
-    if (button.dataset.action === 'edit') {
+    if (action === 'edit') {
         startEditing(product);
-    } else if (button.dataset.action === 'stock-adjust') {
+    } else if (action === 'stock-adjust') {
         startStockAdjustment(product);
-    } else if (button.dataset.action === 'toggle-active' && isOwner) {
+    } else if (action === 'toggle-active' && isOwner) {
         toggleProductActive(product);
-    } else if (button.dataset.action === 'delete' && isOwner) {
+    } else if (action === 'delete' && isOwner) {
         deleteProduct(product);
     }
 });
