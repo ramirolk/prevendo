@@ -27,6 +27,7 @@ class ProductController extends Controller
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
             'category_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
+            'include_inactive' => ['sometimes', 'boolean'],
         ]);
 
         $query = Product::query();
