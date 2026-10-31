@@ -20,11 +20,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Categories
     Route::apiResource('categories', CategoryController::class);
 
-    // Products
-    Route::apiResource('products', ProductController::class)->except(['destroy']);
+    // Product reads are available to both roles. Catalog changes are owner-only.
+    Route::apiResource('products', ProductController::class)->only(['index', 'show']);
 
-    Route::delete('/products/{product}', [ProductController::class, 'destroy'])
-        ->middleware('role:owner');
+    Route::middleware('role:owner')->group(function () {
+        Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
+    });
 
     Route::post('/products/{product}/stock-adjustments', [ProductController::class, 'storeStockAdjustment']);
 
