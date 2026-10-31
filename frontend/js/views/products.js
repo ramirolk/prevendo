@@ -24,6 +24,8 @@ const categoryFilter = document.getElementById('category-filter');
 const pagination = document.getElementById('products-pagination');
 const paginationSummary = document.getElementById('products-pagination-summary');
 const pageLabel = document.getElementById('products-page-label');
+const productFormCard = document.getElementById('product-form-card');
+const productsList = document.getElementById('products-list');
 const productForm = document.getElementById('product-form');
 const productFormHeading = document.getElementById('product-form-heading');
 const productFormDescription = document.getElementById('product-form-description');
@@ -62,7 +64,11 @@ let latestProductsRequestId = 0;
 
 mountNav();
 
-if (isOwner) includeInactiveControl.hidden = false;
+if (isOwner) {
+    includeInactiveControl.hidden = false;
+    productFormCard.hidden = false;
+    productsList.classList.remove('lg:col-span-2');
+}
 
 function emptyProductFormValues() {
     return {
@@ -212,8 +218,8 @@ function startStockAdjustment(product) {
 }
 
 function focusStockAdjustmentTrigger(productId) {
-    const trigger = [...productsBody.querySelectorAll('select[data-action-menu]')]
-        .find(select => select.dataset.id === String(productId));
+    const trigger = [...productsBody.querySelectorAll('button[data-action="stock-adjust"]')]
+        .find(button => button.dataset.id === String(productId));
 
     (trigger ?? productsHeading).focus();
 }
@@ -228,12 +234,16 @@ function cancelStockAdjustment() {
     if (productId) focusStockAdjustmentTrigger(productId);
 }
 
-function focusProductAction(productId) {
-    const trigger = [...productsBody.querySelectorAll('select[data-action-menu]')]
-        .find(select => select.dataset.id === String(productId));
+function focusProductAction(productId, action) {
+    const trigger = [...productsBody.querySelectorAll('button[data-action]')]
+        .find(button => button.dataset.id === String(productId) && button.dataset.action === action);
 
-    if (trigger && !trigger.disabled) {
-        trigger.focus();
+    const focusTarget = action === 'toggle-active'
+        ? trigger?.closest('details')?.querySelector('summary')
+        : trigger;
+
+    if (focusTarget && !trigger.disabled) {
+        focusTarget.focus();
     } else {
         productsHeading.focus();
     }
@@ -269,7 +279,7 @@ async function runProductAction(product, {
         if (refreshed) {
             setProductsStatus(successMessage, 'neutral');
             if (focusAction) {
-                focusProductAction(product.id);
+                focusProductAction(product.id, focusAction);
             } else {
                 productsHeading.focus();
             }
@@ -304,6 +314,8 @@ async function runProductAction(product, {
 
 function toggleProductActive(product) {
     const active = !Boolean(product.active);
+
+    if (!active && !window.confirm(`¿Desactivar el producto ${product.name}?`)) return;
 
     return runProductAction(product, {
         request: () => apiFetch(`/products/${encodeURIComponent(product.id)}`, {
@@ -675,12 +687,13 @@ function setListLoading(loading) {
 }
 
 function setProductRowBusy(productId, busy) {
-    const row = [...productsBody.querySelectorAll('[data-id]')]
-        .find(control => control.dataset.id === String(productId))
+    const row = [...productsBody.querySelectorAll('button[data-id]')]
+        .find(button => button.dataset.id === String(productId))
         ?.closest('tr');
 
-    const actionMenu = row?.querySelector('select[data-action-menu]');
-    if (actionMenu) actionMenu.disabled = busy;
+    row?.querySelectorAll('button[data-action]').forEach(button => {
+        button.disabled = busy;
+    });
 }
 
 function formatCurrency(value) {
@@ -759,26 +772,38 @@ function renderProducts() {
         const costCell = includesCostPrice
             ? `<td class="px-5 py-4 tabular-nums text-muted sm:px-6">${escapeHtml(formatCurrency(product.cost_price))}</td>`
             : '';
+        const safeId = escapeHtml(product.id);
+        const safeName = escapeHtml(product.name);
+        const editAction = isOwner ? `
+            <button type="button" data-action="edit" data-id="${safeId}" aria-label="Editar ${safeName}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Editar</button>
+        ` : '';
         const ownerActions = isOwner ? `
-            <option value="toggle-active">${activeActionLabel}</option>
-            <option value="delete">Eliminar</option>
+            <details class="relative">
+                <summary aria-label="Más acciones para ${safeName}" class="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand">
+                    Más
+                    <svg class="size-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 7.22a.75.75 0 0 1 1.06 0L10 10.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" /></svg>
+                </summary>
+                <div class="mt-2 flex min-w-40 flex-col gap-1 rounded-lg border border-line bg-white p-1.5 shadow-md">
+                    <button type="button" data-action="toggle-active" data-id="${safeId}" aria-label="${escapeHtml(activeActionLabel)} ${safeName}" class="min-h-11 rounded-md px-3 py-2 text-left text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">${escapeHtml(activeActionLabel)}</button>
+                    <button type="button" data-action="delete" data-id="${safeId}" aria-label="Eliminar ${safeName}" class="min-h-11 rounded-md px-3 py-2 text-left text-sm font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger">Eliminar</button>
+                </div>
+            </details>
         ` : '';
 
         return `
             <tr class="transition-colors hover:bg-ground/60">
-                <th scope="row" class="px-5 py-4 font-medium text-ink sm:px-6">${escapeHtml(product.name)}</th>
+                <th scope="row" class="px-5 py-4 font-medium text-ink sm:px-6">${safeName}</th>
                 <td class="px-5 py-4 text-muted sm:px-6">${escapeHtml(categoryName(product))}</td>
                 <td class="px-5 py-4 tabular-nums text-ink sm:px-6">${escapeHtml(formatCurrency(product.sale_price))}</td>
                 ${costCell}
                 <td class="px-5 py-4 tabular-nums text-ink sm:px-6">${escapeHtml(formatNumber(product.current_stock))}</td>
                 <td class="px-5 py-4 sm:px-6">${statusLabel}</td>
                 <td class="px-5 py-4 sm:px-6">
-                    <select data-action-menu data-id="${escapeHtml(product.id)}" aria-label="Acciones para ${escapeHtml(product.name)}" class="block min-h-11 min-w-36 rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:bg-ground">
-                        <option value="">Acciones</option>
-                        <option value="edit">Editar</option>
-                        <option value="stock-adjust">Ajustar stock</option>
+                    <div class="flex flex-wrap items-start gap-2">
+                        ${editAction}
+                        <button type="button" data-action="stock-adjust" data-id="${safeId}" aria-label="Ajustar stock de ${safeName}" class="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Ajustar stock</button>
                         ${ownerActions}
-                    </select>
+                    </div>
                 </td>
             </tr>
         `;
@@ -786,22 +811,17 @@ function renderProducts() {
     setProductsStatus('', 'neutral');
 }
 
-productsBody.addEventListener('change', event => {
-    const actionMenu = event.target.closest('select[data-action-menu]');
+productsBody.addEventListener('click', event => {
+    const button = event.target.closest('button[data-action]');
 
-    if (!actionMenu || !productsBody.contains(actionMenu)) return;
+    if (!button || !productsBody.contains(button) || button.disabled || isSubmitting || isAdjustingStock || isProductActionPending) return;
 
-    const action = actionMenu.value;
-    const productId = actionMenu.dataset.id;
-    actionMenu.value = '';
-
-    if (!action || isSubmitting || isAdjustingStock || isProductActionPending) return;
-
-    const product = products.find(item => String(item.id) === productId);
+    const action = button.dataset.action;
+    const product = products.find(item => String(item.id) === button.dataset.id);
 
     if (!product) return;
 
-    if (action === 'edit') {
+    if (action === 'edit' && isOwner) {
         startEditing(product);
     } else if (action === 'stock-adjust') {
         startStockAdjustment(product);
