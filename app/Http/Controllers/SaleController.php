@@ -49,6 +49,7 @@ class SaleController extends Controller
                 
                 $sale->forceFill([
                     'user_id' => $request->user()->id,
+                    'status' => SaleStatus::COMPLETED,
                     'total' => 0,
                 ]);
                 
