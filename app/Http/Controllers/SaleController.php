@@ -22,9 +22,21 @@ use Illuminate\Support\Facades\DB;
 
 class SaleController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $filters = $request->validate([
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $sales = Sale::query()
+            ->with('user:id,name')
+            ->withCount('items')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate($filters['per_page'] ?? 15);
+
+        return SaleResource::collection($sales);
     }
 
     public function store(StoreSaleRequest $request)
@@ -156,9 +168,14 @@ class SaleController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Sale $sale)
     {
-        //
+        $sale->load([
+            'user:id,name',
+            'items.product:id,name',
+        ]);
+
+        return new SaleResource($sale);
     }
 
     /**

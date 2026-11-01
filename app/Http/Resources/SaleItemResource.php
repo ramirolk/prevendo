@@ -14,6 +14,14 @@ class SaleItemResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'product' => $this->whenLoaded('product', fn () => [
+                'id' => $this->product->id,
+                'name' => $this->product->name,
+            ]),
+            'quantity' => $this->quantity,
+            'unit_price' => $this->unit_price,
+        ];
     }
 }
