@@ -22,6 +22,21 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
+        // Query-string booleans arrive as strings normalize the UI's true/false
+        // values before Laravels boolean validator
+        $includeInactive = $request->query('include_inactive');
+        if (is_string($includeInactive)) {
+            $normalizedIncludeInactive = match (strtolower($includeInactive)) {
+                'true' => true,
+                'false' => false,
+                default => null,
+            };
+
+            if ($normalizedIncludeInactive !== null) {
+                $request->merge(['include_inactive' => $normalizedIncludeInactive]);
+            }
+        }
+
         $filters = $request->validate([
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
