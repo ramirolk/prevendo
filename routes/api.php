@@ -30,7 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products/{product}/stock-adjustments', [ProductController::class, 'storeStockAdjustment']);
 
     // Sales
-    Route::apiResource('sales', SaleController::class);
+    Route::apiResource('sales', SaleController::class)->only(['store', 'index', 'show']);
 
     Route::post('/sales/{sale}/cancel',[SaleController::class, 'cancel'])
         ->middleware('role:owner');
