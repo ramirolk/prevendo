@@ -46,6 +46,7 @@
                             <p x-text="error"></p>
                             <button type="button" @click="retryProductSearch" class="w-fit rounded-lg px-3 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Volver a intentar</button>
                         </div>
+                        <p x-cloak x-show="refreshNotice" class="rounded-lg border border-warn/20 bg-warn/10 px-3.5 py-3 text-sm text-warn" role="status" x-text="refreshNotice"></p>
 
                         <p x-cloak x-show="loading" class="py-5 text-center text-sm text-muted" role="status">Buscando productos...</p>
 
@@ -68,7 +69,7 @@
                                             <th scope="row" class="px-4 py-3.5 font-medium text-ink">
                                                 <div class="flex items-center justify-between gap-3">
                                                     <span x-text="product.name"></span>
-                                                    <button type="button" @click="addProduct(product)" :disabled="Number(product.current_stock) < 1" :aria-label="'Agregar ' + product.name + ' a la venta'" class="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-muted">
+                                                    <button type="button" @click="addProduct(product)" :disabled="submitting || Number(product.current_stock) < 1" :aria-label="'Agregar ' + product.name + ' a la venta'" class="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-muted">
                                                         <span x-text="Number(product.current_stock) > 0 ? 'Agregar' : 'Sin stock'"></span>
                                                     </button>
                                                 </div>
@@ -95,6 +96,8 @@
                     </div>
 
                     <p class="mt-4 min-h-5 text-sm text-muted" role="status" aria-live="polite" x-text="cartNotice"></p>
+                    <p x-cloak x-show="successMessage" class="mt-3 rounded-lg border border-brand/20 bg-brand/10 px-3.5 py-3 text-sm text-brand" role="status" tabindex="-1" x-ref="saleSuccess" x-text="successMessage"></p>
+                    <p x-cloak x-show="submitError" class="mt-3 rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger" role="alert" tabindex="-1" x-ref="submitError" x-text="submitError"></p>
 
                     <div x-cloak x-show="cart.length === 0" class="mt-2 rounded-xl border border-dashed border-line px-4 py-8 text-center">
                         <p class="text-sm font-medium text-ink">El carrito está vacío.</p>
@@ -109,7 +112,7 @@
                                         <p class="truncate text-sm font-semibold text-ink" x-text="item.product.name"></p>
                                         <p class="mt-1 text-sm tabular-nums text-muted" x-text="formatCurrency(item.product.sale_price) + ' c/u'"></p>
                                     </div>
-                                    <button type="button" @click="removeProduct(item.product.id)" :aria-label="'Quitar ' + item.product.name + ' del carrito'" class="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger" data-remove-cart-item>
+                                    <button type="button" @click="removeProduct(item.product.id)" :disabled="submitting" :aria-label="'Quitar ' + item.product.name + ' del carrito'" class="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger" data-remove-cart-item>
                                         Quitar
                                     </button>
                                 </div>
@@ -117,9 +120,9 @@
                                 <div class="mt-3 flex items-center justify-between gap-3">
                                     <label class="text-sm font-medium text-ink" :for="'cart-quantity-' + item.product.id">Cantidad</label>
                                     <div class="flex items-center gap-2">
-                                        <button type="button" @click="decreaseQuantity(item)" :disabled="Number(item.quantity) <= 1" :aria-label="'Reducir cantidad de ' + item.product.name" class="inline-flex size-11 items-center justify-center rounded-lg border border-line text-lg font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50">−</button>
-                                        <input :id="'cart-quantity-' + item.product.id" type="number" min="1" step="1" :max="item.product.current_stock" x-model.number="item.quantity" @blur="normalizeQuantity(item)" @input="item.quantityError = ''" :aria-invalid="item.quantityError ? 'true' : 'false'" :aria-describedby="item.quantityError ? 'cart-quantity-error-' + item.product.id : null" :aria-label="'Cantidad de ' + item.product.name" class="min-h-11 w-20 rounded-lg border border-line bg-white px-2 text-center text-sm tabular-nums text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20">
-                                        <button type="button" @click="increaseQuantity(item)" :disabled="Number(item.quantity) >= Number(item.product.current_stock)" :aria-label="'Aumentar cantidad de ' + item.product.name" class="inline-flex size-11 items-center justify-center rounded-lg border border-line text-lg font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                                        <button type="button" @click="decreaseQuantity(item)" :disabled="submitting || Number(item.quantity) <= 1" :aria-label="'Reducir cantidad de ' + item.product.name" class="inline-flex size-11 items-center justify-center rounded-lg border border-line text-lg font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50">−</button>
+                                        <input :id="'cart-quantity-' + item.product.id" type="number" min="1" step="1" :max="item.product.current_stock" x-model.number="item.quantity" :disabled="submitting" @blur="normalizeQuantity(item)" @input="item.quantityError = ''" :aria-invalid="item.quantityError ? 'true' : 'false'" :aria-describedby="item.quantityError ? 'cart-quantity-error-' + item.product.id : null" :aria-label="'Cantidad de ' + item.product.name" class="min-h-11 w-20 rounded-lg border border-line bg-white px-2 text-center text-sm tabular-nums text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20">
+                                        <button type="button" @click="increaseQuantity(item)" :disabled="submitting || Number(item.quantity) >= Number(item.product.current_stock)" :aria-label="'Aumentar cantidad de ' + item.product.name" class="inline-flex size-11 items-center justify-center rounded-lg border border-line text-lg font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50">+</button>
                                     </div>
                                 </div>
                                 <p x-cloak x-show="item.quantityError" :id="'cart-quantity-error-' + item.product.id" class="mt-2 text-sm text-danger" x-text="item.quantityError"></p>
@@ -133,6 +136,7 @@
                             <span class="text-lg font-semibold tabular-nums text-ink" x-text="formatEstimatedTotal()">$ 0,00</span>
                         </div>
                         <p class="mt-2 text-xs leading-5 text-muted">El precio final se calcula y confirma al registrar la venta.</p>
+                        <button type="button" @click="submitSale" :disabled="submitting || cart.length === 0 || !cartIsValid" class="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-muted" x-text="submitting ? 'Registrando venta...' : 'Confirmar venta'">Confirmar venta</button>
                     </div>
                 </aside>
             </div>

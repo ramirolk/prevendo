@@ -13,6 +13,10 @@ document.addEventListener('alpine:init', () => {
         loading: false,
         hasLoaded: false,
         error: '',
+        refreshNotice: '',
+        successMessage: '',
+        submitError: '',
+        submitting: false,
         searchTimer: null,
         latestRequestId: 0,
 
@@ -29,9 +33,13 @@ document.addEventListener('alpine:init', () => {
             this.searchTimer = setTimeout(() => this.loadProducts(requestId), 300);
         },
 
-        async loadProducts(requestId = ++this.latestRequestId) {
-            this.loading = true;
-            this.error = '';
+        async loadProducts(requestId = ++this.latestRequestId, { silent = false } = {}) {
+            if (!silent) {
+                this.loading = true;
+                this.error = '';
+            }
+
+            this.refreshNotice = '';
 
             const params = new URLSearchParams({ per_page: '10' });
             const search = this.query.trim();
@@ -41,7 +49,7 @@ document.addEventListener('alpine:init', () => {
             try {
                 const response = await apiFetch(`/products?${params.toString()}`);
 
-                if (requestId !== this.latestRequestId) return;
+                if (requestId !== this.latestRequestId) return false;
 
                 if (!Array.isArray(response?.data)) {
                     throw new Error('Formato de respuesta inesperado');
@@ -49,21 +57,96 @@ document.addEventListener('alpine:init', () => {
 
                 this.products = response.data;
                 this.hasLoaded = true;
+                return true;
             } catch (error) {
-                if (requestId !== this.latestRequestId || error.status === 401) return;
+                if (requestId !== this.latestRequestId || error.status === 401) return false;
 
-                this.products = [];
                 this.hasLoaded = true;
-                this.error = 'No se pudieron cargar los productos. Revisá tu conexión e intentá nuevamente.';
+                if (silent) {
+                    this.refreshNotice = 'La venta se registró, pero no pudimos actualizar el stock. Recargá la página para verlo.';
+                } else {
+                    this.products = [];
+                    this.error = 'No se pudieron cargar los productos. Revisá tu conexión e intentá nuevamente.';
+                }
                 console.error('Error al buscar productos para la venta:', error);
+                return false;
             } finally {
-                if (requestId === this.latestRequestId) this.loading = false;
+                if (!silent && requestId === this.latestRequestId) this.loading = false;
             }
         },
 
         retryProductSearch() {
             clearTimeout(this.searchTimer);
             this.loadProducts();
+        },
+
+        get cartIsValid() {
+            return this.cart.length > 0 && this.cart.every(item => {
+                const quantity = Number(item.quantity);
+                const stock = Number(item.product.current_stock);
+                const price = this.priceInCents(item.product.sale_price);
+
+                return Number.isSafeInteger(quantity)
+                    && quantity >= 1
+                    && Number.isSafeInteger(stock)
+                    && quantity <= stock
+                    && price !== null;
+            });
+        },
+
+        async submitSale() {
+            if (this.submitting || this.cart.length === 0) return;
+
+            this.cart.forEach(item => this.normalizeQuantity(item));
+            if (!this.cartIsValid) {
+                this.submitError = 'Revisá las cantidades antes de confirmar la venta.';
+                this.$nextTick(() => this.$refs.submitError?.focus());
+                return;
+            }
+
+            clearTimeout(this.searchTimer);
+            this.latestRequestId += 1;
+            this.loading = false;
+            this.submitting = true;
+            this.submitError = '';
+            this.successMessage = '';
+            this.refreshNotice = '';
+
+            const items = this.cart.map(item => ({
+                product_id: item.product.id,
+                quantity: Number(item.quantity),
+            }));
+
+            try {
+                const response = await apiFetch('/sales', {
+                    method: 'POST',
+                    body: JSON.stringify({ items }),
+                });
+                const sale = response?.data;
+
+                if (!sale?.id || sale.total === undefined || sale.total === null) {
+                    throw new Error('La API no devolvió el identificador y el total de la venta.');
+                }
+
+                this.cart = [];
+                this.cartNotice = '';
+                this.successMessage = 'Venta #' + sale.id + ' registrada por ' + this.formatCurrency(sale.total) + '.';
+                await this.loadProducts(++this.latestRequestId, { silent: true });
+                this.$nextTick(() => document.getElementById('pos-product-search')?.focus());
+            } catch (error) {
+                if (error.status === 401) return;
+
+                if (error.status) {
+                    this.submitError = 'No se pudo registrar la venta. Revisá los datos y volvé a intentar.';
+                } else {
+                    this.submitError = 'No pudimos confirmar la venta. Revisá el historial antes de reintentar; no vuelvas a enviarla todavía.';
+                }
+
+                console.error('Error al registrar la venta:', error);
+                this.$nextTick(() => this.$refs.submitError?.focus());
+            } finally {
+                this.submitting = false;
+            }
         },
 
         addProduct(product) {

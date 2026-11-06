@@ -535,6 +535,12 @@
     --tw-border-style: dashed;
     border-style: dashed;
   }
+  .border-brand\/20 {
+    border-color: color-mix(in srgb, #0E4A5C 20%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-brand) 20%, transparent);
+    }
+  }
   .border-danger {
     border-color: var(--color-danger);
   }
