@@ -349,11 +349,17 @@
   .h-dvh {
     height: 100dvh;
   }
+  .min-h-5 {
+    min-height: calc(var(--spacing) * 5);
+  }
   .min-h-11 {
     min-height: calc(var(--spacing) * 11);
   }
   .min-h-screen {
     min-height: 100vh;
+  }
+  .w-20 {
+    width: calc(var(--spacing) * 20);
   }
   .w-72 {
     width: calc(var(--spacing) * 72);
@@ -387,6 +393,9 @@
   }
   .min-w-40 {
     min-width: calc(var(--spacing) * 40);
+  }
+  .min-w-\[440px\] {
+    min-width: 440px;
   }
   .min-w-\[560px\] {
     min-width: 560px;
@@ -898,6 +907,9 @@
   }
   .disabled\:bg-ground:disabled {
     background-color: var(--color-ground);
+  }
+  .disabled\:bg-muted:disabled {
+    background-color: var(--color-muted);
   }
   .disabled\:opacity-50:disabled {
     opacity: 50%;
