@@ -69,13 +69,15 @@ class SaleController extends Controller
                     
                     if (! $product->active) {
                         throw new ProductInactiveException(
-                            "Product {$product->name} is inactive."
+                            "Product {$product->name} is inactive.",
+                            $product->id
                         );
                     }
 
                     if ($product->current_stock < $item['quantity']) {
                         throw new InsufficientStockException(
-                            "Insufficient stock for product {$product->name}."
+                            "Insufficient stock for product {$product->name}.",
+                            $product->id
                         );
                     }
 
@@ -108,10 +110,19 @@ class SaleController extends Controller
                 return $sale;
             });
 
-        } catch (InsufficientStockException | ProductInactiveException $e) {
+        } catch (InsufficientStockException $e) {
 
             return response()->json([
                 'message' => $e->getMessage(),
+                'code' => 'insufficient_stock',
+                'product_id' => $e->productId,
+            ], 409);
+        } catch (ProductInactiveException $e) {
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'code' => 'product_inactive',
+                'product_id' => $e->productId,
             ], 409);
         }
 

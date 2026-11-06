@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#EDF0EE">
+    <title>Nueva venta | Prevendo</title>
+
+    <link rel="stylesheet" href="../css/output.css">
+    <style>[x-cloak] { display: none !important; }</style>
+</head>
+
+<body class="min-h-screen bg-ground text-ink antialiased">
+    <div id="nav"></div>
+
+    <header class="flex h-16 items-center gap-3 border-b border-line bg-white px-4 sm:px-6 lg:px-8">
+        <div id="nav-toggle"></div>
+        <div data-nav-toolbar-content class="flex-1">
+            <span class="text-sm font-medium text-ink">Prevendo</span>
+        </div>
+    </header>
+
+    <div data-nav-content>
+        <main class="w-full px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
+            <section class="mb-6">
+                <h1 class="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">Nueva venta</h1>
+                <p class="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+                    Buscá productos, armá el carrito y confirmá la operación. El total del carrito es estimado hasta que la API registre la venta.
+                </p>
+            </section>
+
+            <div x-data="pos" class="grid items-start gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.8fr)]">
+                <section class="overflow-hidden rounded-2xl border border-line bg-white shadow-sm" aria-labelledby="pos-catalog-heading">
+                    <div class="border-b border-line px-5 py-5 sm:px-6">
+                        <h2 id="pos-catalog-heading" class="text-base font-semibold text-ink">Catálogo de productos</h2>
+                        <p class="mt-1 text-sm text-muted">Buscá por nombre para agregar productos a la venta.</p>
+                    </div>
+
+                    <div class="space-y-4 px-5 py-5 sm:px-6">
+                        <div class="space-y-2">
+                            <label for="pos-product-search" class="block text-sm font-medium text-ink">Buscar productos</label>
+                            <input id="pos-product-search" type="search" maxlength="255" autocomplete="off" placeholder="Buscar por nombre..." x-model="query" @input="scheduleProductSearch" class="block min-h-11 w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-brand focus:ring-2 focus:ring-brand/20">
+                        </div>
+
+                        <div x-cloak x-show="error" class="flex flex-col gap-2 rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger" role="alert">
+                            <p x-text="error"></p>
+                            <button type="button" @click="retryProductSearch" class="w-fit rounded-lg px-3 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand/10 focus:outline-none focus:ring-2 focus:ring-brand">Volver a intentar</button>
+                        </div>
+                        <p x-cloak x-show="refreshNotice" class="rounded-lg border border-warn/20 bg-warn/10 px-3.5 py-3 text-sm text-warn" role="status" x-text="refreshNotice"></p>
+
+                        <p x-cloak x-show="loading" class="py-5 text-center text-sm text-muted" role="status">Buscando productos...</p>
+
+                        <p x-cloak x-show="!loading && !error && hasLoaded && products.length === 0" class="py-8 text-center text-sm text-muted">
+                            No encontramos productos con ese nombre.
+                        </p>
+
+                        <div x-cloak x-show="!error && products.length > 0" class="overflow-x-auto">
+                            <table class="w-full min-w-[440px] text-left text-sm">
+                                <thead class="bg-ground/70 text-xs font-semibold uppercase tracking-wide text-muted">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3">Producto</th>
+                                        <th scope="col" class="px-4 py-3">Precio</th>
+                                        <th scope="col" class="px-4 py-3">Stock</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-line">
+                                    <template x-for="product in products" :key="product.id">
+                                        <tr>
+                                            <th scope="row" class="px-4 py-3.5 font-medium text-ink">
+                                                <div class="flex items-center justify-between gap-3">
+                                                    <span x-text="product.name"></span>
+                                                    <button type="button" @click="addProduct(product)" :disabled="submitting || Number(product.current_stock) < 1" :aria-label="'Agregar ' + product.name + ' a la venta'" class="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-muted">
+                                                        <span x-text="Number(product.current_stock) > 0 ? 'Agregar' : 'Sin stock'"></span>
+                                                    </button>
+                                                </div>
+                                            </th>
+                                            <td class="whitespace-nowrap px-4 py-3.5 tabular-nums text-muted" x-text="formatCurrency(product.sale_price)"></td>
+                                            <td class="whitespace-nowrap px-4 py-3.5">
+                                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="Number(product.current_stock) > 0 ? 'bg-brand/10 text-brand' : 'bg-danger/10 text-danger'" x-text="Number(product.current_stock) > 0 ? `${product.current_stock} disponibles` : 'Sin stock'"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <aside class="rounded-2xl border border-line bg-white p-5 shadow-sm sm:p-6" aria-labelledby="pos-cart-heading">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 id="pos-cart-heading" class="text-base font-semibold text-ink">Venta actual</h2>
+                            <p class="mt-1 text-sm text-muted">Revisá los productos antes de confirmar.</p>
+                        </div>
+                        <span class="inline-flex shrink-0 items-center rounded-full bg-ground px-3 py-1 text-xs font-medium text-muted" x-text="`${cart.length} ${cart.length === 1 ? 'producto' : 'productos'}`">0 productos</span>
+                    </div>
+
+                    <p class="mt-4 min-h-5 text-sm text-muted" role="status" aria-live="polite" x-text="cartNotice"></p>
+                    <p x-cloak x-show="successMessage" class="mt-3 rounded-lg border border-brand/20 bg-brand/10 px-3.5 py-3 text-sm text-brand" role="status" tabindex="-1" x-ref="saleSuccess" x-text="successMessage"></p>
+                    <p x-cloak x-show="submitError" class="mt-3 rounded-lg border border-danger/20 bg-danger/10 px-3.5 py-3 text-sm text-danger" role="alert" tabindex="-1" x-ref="submitError" x-text="submitError"></p>
+
+                    <div x-cloak x-show="cart.length === 0" class="mt-2 rounded-xl border border-dashed border-line px-4 py-8 text-center">
+                        <p class="text-sm font-medium text-ink">El carrito está vacío.</p>
+                        <p class="mt-1 text-sm text-muted">Agregá productos desde el catálogo para comenzar.</p>
+                    </div>
+
+                    <ul x-ref="cartItems" x-cloak x-show="cart.length > 0" class="mt-2 divide-y divide-line">
+                        <template x-for="item in cart" :key="item.product.id">
+                            <li class="py-4" :data-cart-product-id="item.product.id">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-semibold text-ink" x-text="item.product.name"></p>
+                                        <p class="mt-1 text-sm tabular-nums text-muted" x-text="formatCurrency(item.product.sale_price) + ' c/u'"></p>
+                                    </div>
+                                    <button type="button" @click="removeProduct(item.product.id)" :disabled="submitting" :aria-label="'Quitar ' + item.product.name + ' del carrito'" class="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger" data-remove-cart-item>
+                                        Quitar
+                                    </button>
+                                </div>
+
+                                <div class="mt-3 flex items-center justify-between gap-3">
+                                    <label class="text-sm font-medium text-ink" :for="'cart-quantity-' + item.product.id">Cantidad</label>
+                                    <div class="flex items-center gap-2">
+                                        <button type="button" @click="decreaseQuantity(item)" :disabled="submitting || Number(item.quantity) <= 1" :aria-label="'Reducir cantidad de ' + item.product.name" class="inline-flex size-11 items-center justify-center rounded-lg border border-line text-lg font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50">−</button>
+                                        <input :id="'cart-quantity-' + item.product.id" type="number" min="1" step="1" :max="item.product.current_stock" x-model.number="item.quantity" :disabled="submitting" @blur="normalizeQuantity(item)" @input="clearItemError(item)" :aria-invalid="item.quantityError || item.validationError ? 'true' : 'false'" :aria-describedby="(item.quantityError ? 'cart-quantity-error-' + item.product.id : '') + (item.validationError ? ' cart-item-error-' + item.product.id : '')" :aria-label="'Cantidad de ' + item.product.name" class="min-h-11 w-20 rounded-lg border border-line bg-white px-2 text-center text-sm tabular-nums text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20">
+                                        <button type="button" @click="increaseQuantity(item)" :disabled="submitting || Number(item.quantity) >= Number(item.product.current_stock)" :aria-label="'Aumentar cantidad de ' + item.product.name" class="inline-flex size-11 items-center justify-center rounded-lg border border-line text-lg font-medium text-ink transition-colors hover:bg-ground focus:outline-none focus:ring-2 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                                    </div>
+                                </div>
+                                <p x-cloak x-show="item.quantityError" :id="'cart-quantity-error-' + item.product.id" class="mt-2 text-sm text-danger" x-text="item.quantityError"></p>
+                                <p x-cloak x-show="item.validationError" :id="'cart-item-error-' + item.product.id" class="mt-2 text-sm text-danger" x-text="item.validationError"></p>
+                            </li>
+                        </template>
+                    </ul>
+
+                    <div class="mt-5 border-t border-line pt-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-sm font-medium text-muted">Total estimado</span>
+                            <span class="text-lg font-semibold tabular-nums text-ink" x-text="formatEstimatedTotal()">$ 0,00</span>
+                        </div>
+                        <p class="mt-2 text-xs leading-5 text-muted">El precio final se calcula y confirma al registrar la venta.</p>
+                        <button type="button" @click="submitSale" :disabled="submitting || cart.length === 0 || !cartIsValid" class="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-muted" x-text="submitting ? 'Registrando venta...' : 'Confirmar venta'">Confirmar venta</button>
+                    </div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="../js/views/sales.js"></script>
+</body>
+</html>
