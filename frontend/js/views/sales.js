@@ -10,6 +10,7 @@ document.addEventListener('alpine:init', () => {
         query: '',
         products: [],
         cart: [],
+        cartNotice: '',
         loading: false,
         hasLoaded: false,
         error: '',
@@ -86,9 +87,11 @@ document.addEventListener('alpine:init', () => {
                 const stock = Number(item.product.current_stock);
                 const price = this.priceInCents(item.product.sale_price);
 
-                return Number.isSafeInteger(quantity)
+                return item.product.active !== false
+                    && Number.isSafeInteger(quantity)
                     && quantity >= 1
                     && Number.isSafeInteger(stock)
+                    && stock > 0
                     && quantity <= stock
                     && price !== null;
             });
@@ -136,7 +139,11 @@ document.addEventListener('alpine:init', () => {
             } catch (error) {
                 if (error.status === 401) return;
 
-                if (error.status) {
+                if (error.status === 409) {
+                    await this.handleSaleConflict(error);
+                } else if (error.status === 422) {
+                    this.handleSaleValidationError(error, items);
+                } else if (error.status) {
                     this.submitError = 'No se pudo registrar la venta. Revisá los datos y volvé a intentar.';
                 } else {
                     this.submitError = 'No pudimos confirmar la venta. Revisá el historial antes de reintentar; no vuelvas a enviarla todavía.';
@@ -147,6 +154,116 @@ document.addEventListener('alpine:init', () => {
             } finally {
                 this.submitting = false;
             }
+        },
+
+        clearCartErrors() {
+            this.cart.forEach(item => this.clearItemError(item));
+            this.clearSubmitFeedback();
+        },
+
+        clearItemError(item) {
+            item.quantityError = '';
+            item.validationError = '';
+            this.clearSubmitFeedback();
+        },
+
+        async handleSaleConflict(error) {
+            const code = error.data?.code;
+            const productId = error.data?.product_id;
+            const item = this.cart.find(cartItem => String(cartItem.product.id) === String(productId));
+
+            if (item && code === 'insufficient_stock') {
+                item.validationError = 'El stock cambió mientras preparabas la venta. Estamos actualizando la disponibilidad.';
+                this.submitError = 'No se registró la venta porque cambió el stock. Ajustá las cantidades indicadas y volvé a confirmar.';
+                await this.refreshCartStock();
+                return;
+            }
+
+            if (item && code === 'product_inactive') {
+                item.product.active = false;
+                item.validationError = 'Este producto fue desactivado y ya no se puede vender. Quitalo del carrito para continuar.';
+                this.submitError = 'No se registró la venta porque uno de los productos ya no está activo.';
+                await this.refreshCartStock();
+                return;
+            }
+
+            this.submitError = 'No se registró la venta porque cambió la disponibilidad de un producto. Revisá el carrito y volvé a intentar.';
+        },
+
+        handleSaleValidationError(error, submittedItems) {
+            const errors = error.data?.errors ?? {};
+            let mappedCount = 0;
+
+            this.clearCartErrors();
+
+            for (const [field, messages] of Object.entries(errors)) {
+                const itemMatch = field.match(/^items\.(\d+)\.(quantity|product_id)$/);
+                const message = Array.isArray(messages) ? messages[0] : '';
+
+                if (itemMatch) {
+                    const submittedItem = submittedItems[Number(itemMatch[1])];
+                    const cartItem = this.cart.find(item => String(item.product.id) === String(submittedItem?.product_id));
+
+                    if (!cartItem) continue;
+
+                    if (itemMatch[2] === 'quantity') {
+                        cartItem.quantityError = 'La cantidad enviada no es válida. Ingresá un entero mayor o igual a 1.';
+                    } else {
+                        cartItem.validationError = message.toLowerCase().includes('already included')
+                            ? 'Este producto está repetido en la venta. Dejá una sola línea y ajustá la cantidad.'
+                            : 'Este producto ya no está disponible. Quitalo del carrito y actualizá el catálogo.';
+                    }
+
+                    mappedCount += 1;
+                    continue;
+                }
+
+                if (field === 'items') {
+                    this.submitError = 'Revisá los productos de la venta: hay un dato inválido o un producto repetido.';
+                }
+            }
+
+            if (mappedCount > 0 && !this.submitError) {
+                this.submitError = 'No se registró la venta. Corregí los productos marcados y volvé a confirmar.';
+            } else if (!this.submitError) {
+                this.submitError = 'No se registró la venta porque algunos datos no son válidos. Revisá el carrito y volvé a intentar.';
+            }
+        },
+
+        async refreshCartStock() {
+            const requests = this.cart.map(async item => {
+                try {
+                    const response = await apiFetch('/products/' + encodeURIComponent(item.product.id));
+                    const product = response?.data;
+
+                    if (!product) throw new Error('Formato de producto inesperado');
+
+                    item.product.current_stock = Number(product.current_stock);
+                    item.product.active = Boolean(product.active);
+                    item.validationError = product.active
+                        ? (Number(product.current_stock) < Number(item.quantity)
+                            ? 'Solo quedan ' + product.current_stock + ' unidades disponibles. Ajustá la cantidad.'
+                            : '')
+                        : 'Este producto fue desactivado y ya no se puede vender. Quitalo del carrito para continuar.';
+
+                    const listedProduct = this.products.find(candidate => String(candidate.id) === String(product.id));
+                    if (listedProduct) {
+                        listedProduct.current_stock = product.current_stock;
+                        listedProduct.active = product.active;
+                    }
+                } catch (refreshError) {
+                    if (refreshError.status === 404) {
+                        item.product.current_stock = 0;
+                        item.product.active = false;
+                        item.validationError = 'Este producto ya no existe. Quitalo del carrito para continuar.';
+                    } else if (refreshError.status !== 401) {
+                        this.refreshNotice = 'No pudimos actualizar todo el stock. Revisá la disponibilidad antes de volver a confirmar.';
+                        console.error('Error al actualizar stock del carrito:', refreshError);
+                    }
+                }
+            });
+
+            await Promise.allSettled(requests);
         },
 
         addProduct(product) {
@@ -172,9 +289,15 @@ document.addEventListener('alpine:init', () => {
                     product,
                     quantity: 1,
                     quantityError: '',
+                    validationError: '',
                 });
             }
 
+            if (existingItem) {
+                existingItem.quantityError = '';
+                existingItem.validationError = '';
+            }
+            this.clearSubmitFeedback();
             this.cartNotice = product.name + ' agregado a la venta.';
         },
 
@@ -184,6 +307,7 @@ document.addEventListener('alpine:init', () => {
             if (!item) return;
 
             this.cart = this.cart.filter(cartItem => String(cartItem.product.id) !== String(productId));
+            this.clearSubmitFeedback();
             this.cartNotice = item.product.name + ' quitado de la venta.';
         },
 
@@ -193,6 +317,8 @@ document.addEventListener('alpine:init', () => {
             if (Number.isSafeInteger(quantity) && quantity > 1) {
                 item.quantity = quantity - 1;
                 item.quantityError = '';
+                item.validationError = '';
+                this.clearSubmitFeedback();
             }
         },
 
@@ -207,6 +333,8 @@ document.addEventListener('alpine:init', () => {
 
             item.quantity = quantity + 1;
             item.quantityError = '';
+            item.validationError = '';
+            this.clearSubmitFeedback();
         },
 
         normalizeQuantity(item) {
@@ -226,6 +354,13 @@ document.addEventListener('alpine:init', () => {
             }
 
             item.quantityError = '';
+            item.validationError = '';
+            this.clearSubmitFeedback();
+        },
+
+        clearSubmitFeedback() {
+            this.submitError = '';
+            this.refreshNotice = '';
         },
 
         priceInCents(value) {
