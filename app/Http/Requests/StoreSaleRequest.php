@@ -48,13 +48,28 @@ class StoreSaleRequest extends FormRequest
 
                 $items = $this->input('items', []);
 
-                $productIds = collect($items)->pluck('product_id');
+                if (! is_array($items)) {
+                    return;
+                }
 
-                if ($productIds->duplicates()->isNotEmpty()) {
-                    $validator->errors()->add(
-                        'items',
-                        'Duplicate products are not allowed in the same sale.'
-                    );
+                $seenProductIds = [];
+
+                foreach ($items as $index => $item) {
+                    if (! is_array($item) || ! isset($item['product_id'])) {
+                        continue;
+                    }
+
+                    $productId = (string) $item['product_id'];
+
+                    if (isset($seenProductIds[$productId])) {
+                        $validator->errors()->add(
+                            "items.{$index}.product_id",
+                            'This product is already included in the sale.'
+                        );
+                        continue;
+                    }
+
+                    $seenProductIds[$productId] = true;
                 }
             },
         ];
